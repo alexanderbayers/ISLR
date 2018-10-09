@@ -1,0 +1,122 @@
+---
+title: "ISLR Problems 3"
+author: "Alex Bayers"
+date: "9/29/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chapter 3 Problems
+
+###Problem 1
+The null hypothesis is that each of newspaper, TV, and radio spending individually affect product sales.  TV spending and radio spending both seem to increase product sales, while newspapers do not.   Radio is 4x more efficient but also has a higher variance.
+    
+    
+###Problem 2
+KNN classification uses the N nearest responses to fit a categorical response, while KNN regression uses the N nearest responses to fit a quantitative response.
+
+
+###Problem 3
+#####A.
+i. This is false.  Women are expected to earn more than men if their GPA is less than 3.5 (Since 35/10 = 3.5), while conditional on the GPA being greater than 3.5 men earn more.
+
+ii. This is false.  See the explanation above.
+
+iii. This is true - men earn more if their GPA is greater than 3.5.
+
+iv. False - see explanation in part A.
+
+#####B.
+```{r}
+50 + 20 * 4 + .07 * 100 + 35 + .01 * 110 * 3.5 - 10 * 3.5
+```
+
+The expected earnings are 140.85.
+
+#####C.
+
+Since the expected value of IQ is 100, we can scale up the coefficient to 1, as compared to the GPA coefficient of 20.  So likely we can exclude the coefficient, as it seems quite small, but we still need the error variance to say more definitively.
+
+###Problem 4
+#####A.
+We would expect the training RSS to be lower for the cubic regression, because it has more terms to more precisely fit the data.  
+
+#####B.
+We would expect the test RSS to be higher, simply because the second and third order terms will be misspecified.
+
+#####C.
+We would expect the training RSS to be lower, for the same reason as part A.
+
+#####D.
+We would expect the test RSS to be lower, as the additional terms should be able to pick up on the additional nonlinearity, but I don't think its guaranteed.
+
+###Problem 5
+X(i) * X(j) / Sum(X(i)^2) is the coefficient on y(j) for x(i)
+
+###Problem 8
+#####A
+```{r}
+library(ISLR)
+attach(Auto)
+mpg_horsepower <-  lm(mpg ~ horsepower)
+summary(mpg_horsepower)
+predict(mpg_horsepower, data.frame(horsepower =(c(98))), interval = "confidence")
+predict(mpg_horsepower, data.frame(horsepower =(c(98))), interval = "prediction")
+```
+
+There is a strong negative correlation.  60.6% of the variation in MPG is explained by horsepower.
+
+#####B
+```{r}
+plot(mpg ~ horsepower)
+abline(mpg_horsepower)
+```
+
+#####C
+```{r}
+par(mfrow=c(2,2))
+plot(mpg_horsepower)
+```
+
+It looks like a quadratic fit is necessary for the model.
+
+###Problem 9
+#####A
+```{r}
+pairs(Auto)
+```
+
+#####B
+```{r}
+cordf <- subset(Auto, select = -c(name))
+cor(cordf)
+```
+
+#####C
+```{r}
+big_mpg <- lm(mpg~.-mpg, data = cordf)
+summary(big_mpg)
+
+
+subset_model <- lm (mpg ~ displacement + weight + year + origin, data = cordf)
+summary(subset_model)
+
+small_model <- lm (mpg ~ weight + year + origin, data = cordf)
+summary(small_model)
+```
+
+Weight, year, and origin are all statistically predictors.  In a regression with all the predictors, displacement has a p-value of 8.5%.  We removed all insignicant predictors except displacement, and refit the model.
+
+When we drop the additional predictors we get a p-value on displacement of 24%, so we drop that and proceed to refit the model.
+For everything 1 year newer the model, the mpg goes up by .75 miles.
+
+#####D
+```{r}
+par(mfrow=c(2,2))
+plot(small_model)
+```
+
+Observations 323, 326, and 327 all seem to have unusually high mileage, and the Q-Q plot seems to imply this as well.  Nothing seems unusual in the leverage plots.  323, 326, and 327 don't have unusually high leverage, though.
