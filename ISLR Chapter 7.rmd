@@ -1,0 +1,377 @@
+---
+title: "Chapter 7.rmd"
+author: "Alex Bayers"
+date: "11/12/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+###Problem 3
+```{r}
+x <- seq(-2, 2, 0.01)
+fx <- x + ((x-1)^2)*(x >= 1)
+plot(x, fx, type = "l")
+```
+
+###Problem 4
+```{r}
+x <- seq(0, 6, 0.01)
+b0 <- 1
+b1 <- 1
+b2 <- 3
+f1 <- (0 <= x & x<= 2) - (x-1)*(1 <= x & x <= 2)
+f2 <- (x-3)*(3 <= x & x <= 4) + (4 < x & x <= 5)
+y <- b0 + b1*f1 + b2*f2
+plot(x, y, type = "l")
+```
+
+###Problem 6
+#####A
+```{r}
+library(ISLR)
+library(boot)
+set.seed(5)
+MSE <- vector(length = 10)
+for (k in 1:10){
+  wage.lm <- glm(wage ~ poly(age, k, raw = FALSE), data = Wage)
+  wage.cv <- cv.glm(Wage, wage.lm, K=30)
+  MSE[k] <- sqrt(wage.cv$delta[2]/3000)
+}
+plot(MSE, type = "l")
+points(which.min(MSE),MSE[which.min(MSE)],col="red",cex=2,pch=20)
+
+fit.1=lm(wage~age,data=Wage)
+fit.2=lm(wage~poly(age, 2),data=Wage)
+fit.3=lm(wage~poly(age, 3),data=Wage)
+fit.4=lm(wage~poly(age, 4),data=Wage)
+fit.5=lm(wage~poly(age, 5),data=Wage)
+fit.6=lm(wage~poly(age, 6),data=Wage)
+fit.7=lm(wage~poly(age, 7),data=Wage)
+fit.8=lm(wage~poly(age, 8),data=Wage)
+fit.9=lm(wage~poly(age, 9),data=Wage)
+fit.10=lm(wage~poly(age, 10),data=Wage)
+anova(fit.1, fit.2, fit.3, fit.4, fit.5, fit.6, fit.7, fit.8, fit.9, fit.10)
+
+fit.4.predict <- lm(wage ~ age + I(age^2) + I(age^3) + I(age^4), data = Wage)
+agelims <- range(Wage$age)
+age.range <- seq(from = agelims[1], to = agelims[2])
+preds <- predict(fit.4.predict, newdata = list(age = age.range), se = TRUE)
+se.bands <- cbind(preds$fit + 2*preds$se.fit, preds$fit - 2*preds$se.fit)
+plot(Wage$age, Wage$wage, xlim = agelims, cex = .5, col="darkgrey")
+lines(age.range, preds$fit, lwd = 2, col = "blue")
+matlines(age.range, se.bands, lwd = 1, col = "blue", lty = 3)
+
+
+par(mfrow=c(2,2))
+plot(fit.4)
+
+```
+
+The MSE is minized at a tenth order polynomial. The anova results indicate minimal gain after the fourth degree polynomial (The statistical significance on the 9th degree term seems like it could be coming entirely from chance).  Looking at the diagnostics there are clear issues with the model fit of this plot.
+
+#####B
+```{r}
+set.seed(5)
+error <- vector(length=10)
+error[1] <- var(Wage$wage)
+for (i in 2:15){
+  Wage$cut.table <- cut(Wage$age, breaks = i)
+  fit <- glm(wage ~ cut.table, data = Wage)
+  fit.cv <- cv.glm(data = Wage, glmfit = fit, K=10)
+  error[i] <- fit.cv$delta[1]
+}
+par(mfrow = c(1,1))
+plot(error, type = "l")
+points(which.min(error),error[which.min(error)],col="red",cex=2,pch=20)
+print(error)
+
+```
+
+Either 8 or 11 cuts seem to minimize the CV error.  11 cuts results in a slightly lower varaiance as compared to 8 cuts, but only marginally so.
+
+###7
+```{r}
+maritl.wage <- lm(wage ~ maritl, data = Wage)
+summary(maritl.wage)
+plot(Wage$wage ~ Wage$maritl)
+
+race.wage <- lm(wage ~ race, data = Wage)
+summary(race.wage)
+plot(Wage$wage ~ Wage$race)
+
+
+jobclass.wage <- lm(wage ~ jobclass, data = Wage)
+summary(jobclass.wage)
+plot(Wage$wage ~ Wage$jobclass)
+
+```
+
+Marital status does seem to have a statistically significant effect, though widowed and separated seem indistinguishable from not married.  Race seems to have a statistially significant effect, with Whites and Asians earning more than Black and other.  Information workers seem to do better than manual workers.
+
+###9
+#####A
+```{r}
+library(MASS)
+poly.cubic <- lm(nox ~ dis + I(dis^2) + I(dis^3), data = Boston)
+dislims <- range(Boston$dis)
+dis.range <- seq(from = dislims[1], to = dislims[2], by = .1)
+preds <- predict(poly.cubic, newdata = list(dis = dis.range), se = TRUE)
+se.bands <- cbind(preds$fit + 2*preds$se.fit, preds$fit - 2*preds$se.fit)
+plot(Boston$dis, Boston$nox, xlim = dislims, cex = .5, col="darkgrey")
+lines(dis.range, preds$fit, lwd = 2, col = "blue")
+matlines(dis.range, se.bands, lwd = 1, col = "blue", lty = 3)
+par(mfrow=c(2,2))
+plot(poly.cubic)
+```
+
+A cubic fit doesn't adequately fit the model.  Points 154 and 160 both look like outliers, and point 354 is high leverage.  Also, if we look at the Q-Q plot, everything above the first quantile looks skewed.
+
+#####B & C
+```{r}
+#Fit the models
+poly.linear <- glm(nox ~ dis, data = Boston)
+poly.quadratic <- glm(nox ~ dis + I(dis^2), data = Boston)
+poly.cubic <- glm(nox ~ dis + I(dis^2) + I(dis^3), data = Boston)
+poly.quartic <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4), data = Boston)
+poly.5th <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4) + I(dis^5), data = Boston)
+poly.6th <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4) + I(dis^5) + I(dis^6), data = Boston)
+poly.7th <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4) + I(dis^5) + I(dis^6) + I(dis^7), data = Boston)
+poly.8th <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4) + I(dis^5) + I(dis^6) + I(dis^7) + I(dis^8), data = Boston)
+poly.9th <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4) + I(dis^5) + I(dis^6) + I(dis^7) + I(dis^8) + I(dis^9), data = Boston)
+poly.10th <- glm(nox ~ dis + I(dis^2) + I(dis^3) + I(dis^4) + I(dis^5) + I(dis^6) + I(dis^7) + I(dis^8) + I(dis^9) + I(dis^10), data = Boston)
+
+#Fit the cv.glm objects
+cv.linear <- cv.glm(Boston, poly.linear)
+cv.quadratic <- cv.glm(Boston, poly.quadratic)
+cv.cubic <- cv.glm(Boston, poly.cubic)
+cv.quartic <- cv.glm(Boston, poly.quartic)
+cv.5th <- cv.glm(Boston, poly.5th)
+cv.6th <- cv.glm(Boston, poly.6th)
+cv.7th <- cv.glm(Boston, poly.7th)
+cv.8th <- cv.glm(Boston, poly.8th)
+cv.9th <- cv.glm(Boston, poly.9th)
+cv.10th <- cv.glm(Boston, poly.10th)
+
+#Build the fits
+preds.1st <- predict(poly.linear, newdata = list(dis = dis.range), se = TRUE)
+preds.2nd <- predict(poly.quadratic, newdata = list(dis = dis.range), se = TRUE)
+preds.3rd <- predict(poly.cubic, newdata = list(dis = dis.range), se = TRUE)
+preds.4th <- predict(poly.quartic, newdata = list(dis = dis.range), se = TRUE)
+preds.5th <- predict(poly.5th, newdata = list(dis = dis.range), se = TRUE)
+preds.6th <- predict(poly.6th, newdata = list(dis = dis.range), se = TRUE)
+preds.7th <- predict(poly.7th, newdata = list(dis = dis.range), se = TRUE)
+preds.8th <- predict(poly.8th, newdata = list(dis = dis.range), se = TRUE)
+preds.9th <- predict(poly.9th, newdata = list(dis = dis.range), se = TRUE)
+preds.10th <- predict(poly.10th, newdata = list(dis = dis.range), se = TRUE)
+
+#Graph the fits
+par(mfrow=c(1,1))
+plot(Boston$dis, Boston$nox, xlim = dislims, cex = .5, col="darkgrey")
+lines(dis.range, preds.1st$fit, lwd = 1, col = "lightblue")
+lines(dis.range, preds.2nd$fit, lwd = 1, col = "blue")
+lines(dis.range, preds.3rd$fit, lwd = 1, col = "darkblue")
+lines(dis.range, preds.4th$fit, lwd = 1, col = "red")
+lines(dis.range, preds.5th$fit, lwd = 1, col = "pink")
+lines(dis.range, preds.6th$fit, lwd = 1, col = "black")
+lines(dis.range, preds.7th$fit, lwd = 1, col = "orange")
+lines(dis.range, preds.8th$fit, lwd = 1, col = "yellow")
+lines(dis.range, preds.9th$fit, lwd = 1, col = "purple")
+lines(dis.range, preds.10th$fit, lwd = 1, col = "green")
+
+aic.vector <- c(poly.linear$aic, poly.quadratic$aic, poly.cubic$aic, poly.quartic$aic, poly.5th$aic, poly.6th$aic, poly.7th$aic, poly.8th$aic, poly.9th$aic, poly.10th$aic)
+plot(aic.vector, type = "l")
+points(which.min(aic.vector), min(aic.vector),col="red",cex=2,pch=20)
+
+rmse.vector <- c(cv.linear$delta[1]^.5, cv.quadratic$delta[1]^.5, cv.cubic$delta[1]^.5, cv.quadratic$delta[1]^.5, cv.5th$delta[1]^.5, cv.6th$delta[1]^.5, cv.7th$delta[1]^.5, cv.8th$delta[1]^.5, cv.9th$delta[1]^.5, cv.10th$delta[1]^.5)
+plot(rmse.vector, type = "l")
+points(which.min(rmse.vector), min(rmse.vector),col="red",cex=2,pch=20)
+```
+
+AIC suggests an 8th order model, but MSE implies a 3rd degree model.
+
+#####D
+```{r}
+library(splines)
+splines.fit <- lm(nox ~ bs(dis, df = 4), data = Boston)
+summary(splines.fit)
+attr(bs(Boston$dis, df=4), "knots")
+splines.predict <- predict(splines.fit, newdata = list(dis = dis.range))
+plot(Boston$dis, Boston$nox)
+lines(dis.range, splines.predict,type = "l")
+```
+
+#####E
+```{r}
+col <- c("lightblue", "blue", "darkblue", "red", "pink", "black", "orange", "yellow", "purple", "green")
+rss <- vector(length=10)
+plot(Boston$dis, Boston$nox, xlim = dislims, cex = .5, col="darkgrey")
+for (i in 1:10){
+  model.fit <- lm(nox ~ bs(dis, df = i+3), data = Boston)
+  splines.predict <- predict(model.fit, newdata = list(dis = dis.range))
+  rss[i] <- sum((predict(model.fit) - Boston$nox)^2)
+  lines(dis.range, splines.predict,type = "l", col = col[i])
+}
+
+plot(x = 4:13, y = rss)
+points(which.min(rss)+3, min(rss), col="red",cex=2,pch=20)
+```
+
+Within sample df = 13 fits best, but this is to be expected given that it is within sample.
+
+#####F
+```{r}
+set.seed(7)
+cv <- vector(length=15)
+for (i in 1:15){
+  model.fit <- glm(nox ~ bs(dis, df = i+2), data = Boston)
+  cv[i] <- cv.glm(Boston, model.fit, K=10)$delta[1]
+}
+plot(x = 3:17, y = cv)
+points(which.min(cv)+2, min(cv), col="red",cex=2,pch=20)
+```
+
+We see the test error is minimized for 6 degrees of freedom.
+
+###10
+#####A
+We fit a model using 70% as the training set, 30% as the test set.
+```{r}
+library(leaps)
+predict.regsubsets <- function(object ,newdata ,id ,...){
+  form=as.formula(object$call [[2]])
+  mat=model.matrix(form,newdata)
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+set.seed(248)
+train.length <- floor(nrow(College)*.5)
+sample.seq <- c(rep(TRUE, train.length), rep(FALSE, nrow(College)-train.length))
+sampled.seq <- sample(sample.seq, nrow(College), replace = FALSE)
+train.set <- College[sampled.seq==TRUE,]
+test.set <- College[sampled.seq==FALSE,]
+regfit.fwd <- regsubsets(Outstate ~. , data = train.set, method = c("forward"), nvm = 17)
+summary(regfit.fwd)
+pred.errors <- vector(length=17)
+for (i in 1:17){
+  pred.matrix <- predict(regfit.fwd, newdata = test.set, id = i)
+  pred.errors[i] <- (mean(test.set$Outstate - pred.matrix)^2)^.5
+}
+plot(pred.errors)
+points(which.min(pred.errors), min(pred.errors), col="red",cex=2,pch=20)
+```
+
+We try using 8 variables for our model, in line with the min MSE.  We include PrivateYes, F.Undergrad, Room.Board, Personal, Terminal, perc.Alumni, Expend, Grad.Rate.
+
+#####B
+```{r}
+library(gam)
+gam.m1 <- gam(Outstate ~ Private + s(F.Undergrad, 3) + s(Room.Board, 20) + s(Personal, 3) + s(Terminal, 3) + s(perc.alumni, 3) + s(Expend, 20) + s(Grad.Rate, 3), data = train.set)
+summary(gam.m1)
+par(mfrow=c(2,2))
+plot(gam.m1)
+```
+
+###12
+#####A,B,C,D
+```{r}
+set.seed(12)
+b1 <- .7
+b2 <- .9
+x1 <- rnorm(100)
+x2 <- rnorm(100)
+e <- rnorm(100)
+y <- b1*x1 + b2*x2 + e
+b1.est <- rnorm(1)
+a <- y - b1.est*x1
+b2.est <- lm(a ~ x2)$coef[2]
+a <- y - b2.est*x2
+b1.est <- lm(a ~ x1)$coef[2]
+```
+
+#####E
+```{r}
+my.matrix <- matrix(NA, nrow = 1000, ncol = 3)
+b1.est <- rnorm(1)
+b0.est <- 0
+for (i in 1:1000){
+  a <- y - b1.est*x1
+  b2.est <- lm(a ~ x2)$coef[2]
+  a <- y - b2.est*x2
+  lm.est <- lm(a ~ x1)
+  b1.est <- lm.est$coef[2]
+  b0.est <- lm.est$coef[1]
+  my.matrix[i,] <- c(b0.est, b1.est, b2.est)
+}
+colnames(my.matrix) <- c('b0', 'b1', 'b2')
+df <- data.frame(my.matrix)
+par(mfrow = c(1,1))
+plot(df$b2, type = 'l', col = 'red', ylim = c(min(df), max(df)))
+lines(df$b1, type = 'l', col = 'blue')
+lines(df$b0, type = 'l', col = 'green')
+
+```
+
+The fit converges after two iterations, which seems quite good.
+
+#####F
+```{r}
+lm.fit <- lm(y ~ x1 + x2)
+summary(lm.fit)
+plot(df$b2, type = 'l', col = 'red', ylim = c(min(df), max(df)))
+abline(a = lm.fit$coef[0], b = 0, col = 'black')
+abline(a = lm.fit$coef[1], b = 0, col = 'purple')
+abline(a = lm.fit$coef[2], b = 0, col = 'orange')
+lines(df$b1, type = 'l', col = 'blue')
+lines(df$b0, type = 'l', col = 'green')
+
+```
+
+So our model converges after two passes.
+
+###12
+```{r}
+set.seed(12)
+nrows <- 1000
+ncolumns <- 100
+niters <- 200
+x <- matrix(rnorm(nrows*ncolumns), nrow = nrows, ncol = ncolumns)
+e <- rnorm(nrows)
+beta <- matrix(rnorm(ncolumns, sd = 10), nrow = ncolumns, ncol = 1)
+#beta <- c(.7, .9)
+y.new <- x %*% beta + e
+
+beta.est <- matrix(NA, nrow = niters, ncol = ncolumns + 1)
+beta.est[1,] <- rnorm(ncolumns+1)
+for (i in 1:niters){
+  for (j in 1:ncolumns){
+    a <- y.new - x[,-j] %*% t(beta.est[i,2:(ncolumns+1), drop = FALSE][,-j,drop=FALSE])
+    lm.est <- lm(a ~ x[,j])
+    beta.est[i,(j+1)] <- lm.est$coef[2]
+    if (j == ncolumns){
+      beta.est[i,1] <- lm.est$coef[1]
+    }
+  }
+  if (i != nrows){
+    beta.est[i+1,] <- beta.est[i,]
+  }
+}
+
+ols.model <- lm(y.new ~ x)
+summary(ols.model)
+
+mse.beta <- vector(length = niters)
+for (x in 1:niters){
+  beta.diff <- beta.est[x,] - ols.model$coef
+  beta.sq <- beta.diff^2
+  mse.beta[x] <- mean(beta.sq)^.5
+}
+plot(mse.beta)
+```
+
+On 100 predictors, the backfitting algorithm converges after 8 or so passes.

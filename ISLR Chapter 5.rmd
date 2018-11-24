@@ -1,0 +1,320 @@
+---
+title: "ISLR Chapter 5.rmd"
+author: "Alex Bayers"
+date: "10/20/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chapter 5 Problems
+
+###Problem 2
+#####G
+
+```{r}
+input = seq(1:100)
+bootstrap_limit = function(n){
+  return((1-1/n)^n)
+}
+output = apply(as.matrix(input), 2, bootstrap_limit)
+plot(input, output)
+```
+
+It asymptotes after 40 datapoints to the numbers we saw.
+
+#####H
+```{r}
+store=rep(NA, 10000)
+for(i in 1:10000){
+  store[i]=sum(sample(1:100, rep=TRUE)==4)>0
+}
+sum(store)/10000
+```
+
+This matches the numbers from our analytical function.
+
+###Problem 3
+#####A
+We break up our data into K separate (and distinct folds).  Then, we select K-1 folds, and the model using the (K-1)/K*n remaining datapoints.  Then, we apply our fitted model to the held out slice, and calculate the prediction errors.  We repeat this process for each of the K folds.
+
+######B
+A.  The validation set approach's estimate of standard deviation is biased (too high).  It is, however, easier to implement.
+B.  It may have higher bias.
+
+###Problem 4
+Fit a model using loocv, then use the average prediction error.
+
+###Problem 5
+#####A.
+```{r}
+library(ISLR)
+set.seed(1)
+glm.fit=glm(default  ~ income + balance, data=Default, family=binomial)
+summary(glm.fit)
+```
+
+#####B & C.
+```{r}
+set.seed(1)
+
+default_testing = function(){
+  data.length <- length(Default$default)
+  sample.set <- sample(seq(1, data.length), data.length/2, replace = FALSE)
+  train <- rep(FALSE, data.length)
+  train[sample.set] <- TRUE
+  Default.Train <- Default[train,]
+  Default.Test <- Default[!train,]
+  glm.fit.train<-glm(default  ~ income + balance, data=Default.Train, family=binomial)
+  summary(glm.fit.train)
+  Prob.Test <- predict(glm.fit.train, newdata = Default.Test, type = "response")
+  Predict.Test <- rep(FALSE, data.length/2)
+  Predict.Test[Prob.Test > .5] <- TRUE
+  print(sum(Predict.Test)/(data.length/2))
+}
+
+default_testing()
+default_testing()
+default_testing()
+default_testing()
+
+```
+
+Our results are quite consistent, ranging from 3.1% to 3.5% for our training set.
+
+#####D.
+```{r}
+data.length <- length(Default$default)
+sample.set <- sample(seq(1, data.length), data.length/2, replace = FALSE)
+train <- rep(FALSE, data.length)
+train[sample.set] <- TRUE
+Default.Train <- Default[train,]
+Default.Test <- Default[!train,]
+glm.fit.train.student <-glm(default  ~ income + balance + student, data=Default.Train, family=binomial)
+glm.fit.train <-glm(default  ~ income + balance, data=Default.Train, family=binomial)
+glm.fit.incomeonly <-glm(default  ~  balance + student, data=Default.Train, family=binomial)
+print(summary(glm.fit.train.student))
+print(summary(glm.fit.train))
+print(summary(glm.fit.incomeonly))
+Prob.Test.Student <- predict(glm.fit.train.student, newdata = Default.Test, type = "response")
+Prob.Test <- predict(glm.fit.train, newdata = Default.Test, type = "response")
+Prob.Test.Incomeonly <- predict(glm.fit.incomeonly, newdata = Default.Test, type = "response")
+Predict.Test.Student <- rep(FALSE, data.length/2)
+Predict.Test <- rep(FALSE, data.length/2)
+Predict.Test.Incomeonly <- rep(FALSE, data.length/2)
+#Set the out of sample numbers
+Predict.Test.Student[Prob.Test.Student > .5] <- TRUE
+Predict.Test[Prob.Test > .5] <- TRUE
+Prob.Test.Incomeonly[Prob.Test.Incomeonly > .5] <- TRUE
+print(sum(Predict.Test.Student)/(data.length/2))
+print(sum(Predict.Test)/(data.length/2))
+print(sum(Prob.Test.Incomeonly)/(data.length/2))
+```
+
+We obtain a slightly better fit by adding the student; however, it seems to be within the realms of our error bars so we can't say one way or the other which is a superior fit.
+
+###Problem 6
+#####A.
+```{r}
+glm.fit <-glm(default  ~ income + balance, data=Default, family=binomial)
+summary(glm.fit)
+```
+
+#####B.
+```{r}
+boot.fn <- function(data, index){
+  return(coef(glm(default~income + balance ,data=data,family = binomial, subset=index)))
+}
+```
+
+#####C.
+```{r}
+library(boot)
+#boot(Default, boot.fn, R=1000)
+```
+
+#####D.
+The results are quite similar; however, the bootstrap standard error for income is about 10% smaller than the analytical standard error - while the rest are functionally identical.
+
+###Problem 7
+#####A.
+```{r}
+weekly_model <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial)
+summary(weekly_model)
+```
+
+#####B.
+```{r}
+weekly_model.subset <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial, subset = -1)
+summary(weekly_model.subset)
+```
+
+#####C.
+```{r}
+odds = predict(weekly_model.subset, newdata = Weekly[1,], type = "response")
+prediction = "Down"
+if (odds > .5){
+  prediction <- "Up"
+}
+print(prediction==Weekly[1,"Direction"])
+```
+
+There is a 57% chance the market goes up, so we would classify this as an up.
+
+#####D.
+```{r}
+cv.err <- rep(0, 1089)
+for (i in 1:1089){
+  weekly_model.subset <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = binomial, subset = -i)
+  odds <- predict(weekly_model.subset, newdata = Weekly[i,], type = "response")
+prediction = "Down"
+if (odds > .5){
+  prediction <- "Up"
+}
+cv.err[i] <- 1
+if (prediction==Weekly[i,"Direction"]){
+  cv.err[i] <- 0
+}
+}
+mean(cv.err)
+```
+
+We get a 55% hit rate, which seems pretty good.
+
+###Problem 8
+#####A.
+```{r}
+set.seed(1)
+y=rnorm(100)
+x=rnorm(100)
+y=x-2*x^2+rnorm(100)
+```
+
+In this model, n = 100, and p = 1.
+
+#####B.
+```{r}
+plot(x, y)
+```
+
+In this model, we have an inverted parabola, as expected.
+
+#####C.
+```{r}
+set.seed(2)
+my.data <- data.frame(y, x)
+linear.model <- glm(y ~ poly(x, 1), data = my.data)
+quadratic.model <- glm(y ~ poly(x,2), data = my.data)
+cubic.model <- glm(y ~ poly(x, 3), data = my.data)
+quartic.model <- glm(y ~ poly(x, 4), data = my.data)
+linear.error <- cv.glm(my.data, linear.model)
+quadratic.error <- cv.glm(my.data, quadratic.model)
+cubic.error <- cv.glm(my.data, cubic.model)
+quartic.error <- cv.glm(my.data, quartic.model)
+print(linear.error$delta)
+print(quadratic.error$delta)
+print(cubic.error$delta)
+print(quartic.error$delta)
+
+
+set.seed(3)
+my.data <- data.frame(y, x)
+linear.model <- glm(y ~ poly(x, 1), data = my.data)
+quadratic.model <- glm(y ~ poly(x,2), data = my.data)
+cubic.model <- glm(y ~ poly(x, 3), data = my.data)
+quartic.model <- glm(y ~ poly(x, 4), data = my.data)
+linear.error <- cv.glm(my.data, linear.model)
+quadratic.error <- cv.glm(my.data, quadratic.model)
+cubic.error <- cv.glm(my.data, cubic.model)
+quartic.error <- cv.glm(my.data, quartic.model)
+print(linear.error$delta)
+print(quadratic.error$delta)
+print(cubic.error$delta)
+print(quartic.error$delta)
+
+```
+
+Changing the seed makes no difference.  The quadratic model fits the best.
+
+#####F.
+```{r}
+summary(linear.model)
+summary(quadratic.model)
+summary(cubic.model)
+summary(quartic.model)
+```
+
+Our models suggest that the first and second coefficients are statistically significant, which accords with our cross validation results.
+
+###Problem 9
+#####A.
+```{r}
+library(MASS)
+mean(Boston$medv)
+```
+
+######B.
+```{r}
+sd(Boston$medv)/(length(Boston$medv)^.5)
+```
+
+#####C.
+```{r}
+mean.fn <- function(data, index){
+  X = data$medv[index]
+  return(mean(X))
+}
+boot_mean <- boot(Boston, mean.fn, R = 1000)
+print(boot_mean)
+```
+
+The standard deviation from the bootstrap is same as our analytical bootstrap.
+
+#####D.
+```{r}
+quantile(boot_mean$t, probs = c(.025, .975))
+t.test(Boston$medv)
+```
+
+Our bootstrap estimates are quite similar to our analytical estimates.
+
+#####E.
+```{r}
+median(Boston$medv)
+```
+
+The median is 21.2.
+
+#####F.
+```{r}
+set.seed(5)
+median.fn <- function(data, index){
+  X = data$medv[index]
+  return(median(X))
+}
+boot_median <- boot(Boston, median.fn, R = 1000)
+print(boot_median)
+```
+
+The estimated SD of the median is .4.  The data seems skewed (median is lower than the median), and it seems materially distant (3 standard deviations worth).
+
+#####G.
+```{r}
+quantile(Boston$medv, probs = c(0.1))
+```
+
+
+#####H.
+```{r}
+set.seed(7)
+quantile10.fn <- function(data, index){
+  X = data$medv[index]
+  return(quantile(X, probs = c(0.1)))
+}
+boot_quantile10 <- boot(Boston, quantile10.fn, R = 1000)
+print(boot_quantile10)
+```
+
+The standard error is .485, or about 25% more than the estimation error of the mean and median.

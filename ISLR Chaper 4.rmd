@@ -1,0 +1,306 @@
+---
+title: "ISLR Problems 4"
+author: "Alex Bayers"
+date: "10/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Chapter 4 Problems
+
+###Problem 10
+#####A.
+```{r}
+library(ISLR)
+attach(Weekly)
+summary(Weekly)
+cor(Weekly[,-9])
+par(mfrow=c(2, 3))
+plot(Today ~ Lag1)
+plot(Today ~ Lag2)
+plot(Today ~ Lag3)
+plot(Today ~ Lag4)
+plot(Today ~ Lag5)
+plot(Today ~ Volume )
+```
+
+Nothing stands out terribly obviously, though large moves both up and down seem correlated with large volume periods.
+
+#####B.
+```{r}
+glm.fit=glm(Direction  ~ Lag1+Lag2+Lag3+Lag4+Lag5+Volume , data=Weekly, family=binomial)
+summary(glm.fit)
+```
+
+Lag 2 seems statistically significant.  We refit the model with just the first two predictors to obtain the following.
+
+```{r}
+glm.fit=glm(Direction  ~ Lag1+Lag2, data=Weekly, family=binomial)
+summary(glm.fit)
+```
+
+This refit confirms our results.  Further, we remove the first lag know and refit.
+
+```{r}
+glm.fit=glm(Direction  ~ Lag2, data=Weekly, family=binomial)
+summary(glm.fit)
+```
+
+This model fit further confirms the results of lag 2.
+
+#####C.
+```{r}
+glm.pred=rep("Down",1089)
+glm.probs=predict(glm.fit,type="response")
+glm.pred[glm.probs >.5]="Up"
+table(glm.pred,Direction)
+mean(glm.pred==Direction )
+print(605/(605+484))
+```
+
+The model always predicts the market is going up.  The model hit rate is 56.2%, versus a default up hit rate of 55.5%.  The hit rate seems symmetric across both up and down.
+
+#####D.
+```{r}
+test = (Year > 2008)
+Weekly.train = Weekly[!test,]
+Weekly.test = Weekly[test,]
+glm.fit.train=glm(Direction  ~ Lag2, data=Weekly.train, family=binomial)
+summary(glm.fit.train)
+train_length = dim(Weekly.test)[1]
+glm.pred.test=rep("Down",train_length)
+glm.probs.test=predict(glm.fit.train,newdata=Weekly.test,type="response")
+glm.pred.test[glm.probs.test >.5]="Up"
+table(glm.pred.test,Direction[test])
+sum(glm.pred.test==Direction[test])/length(Direction[test])
+```
+
+We have a hit rate of 62.5% out of sample, with the accuracy roughly the same between up and down.  
+
+#####E.
+```{r}
+library(MASS)
+lda.fit.train=lda(Direction ~ Lag2, data=Weekly ,subset= !test)
+lda.fit.train
+plot(lda.fit.train)
+lda.probs.test=predict(lda.fit.train,Weekly.test)
+lda.class = lda.probs.test$class
+table(lda.class,Direction[test])
+mean(lda.class==Direction[test])
+table(lda.class, glm.pred.test)
+```
+
+LDA categorizations perfectly match up with logistic regression.
+
+#####F.
+```{r}
+qda.fit.train=qda(Direction ~ Lag2, data=Weekly ,subset= !test)
+qda.fit.train
+qda.probs.test=predict(qda.fit.train,Weekly.test)
+qda.class = qda.probs.test$class
+table(qda.class,Direction[test])
+mean(qda.class==Direction[test])
+```
+
+#####G.
+```{r}
+library(class)
+set.seed(1)
+train.X = Lag2[!test]
+test.X = Lag2[test]
+knn.pred=knn(as.matrix(train.X),as.matrix(test.X),as.matrix(Direction[!test]) ,k=1)
+table(knn.pred,Direction[test])
+mean(knn.pred==Direction[test])
+```
+
+#####H.
+Based on the confusion matrix, LDA / logistic regression provides the best fit.  QDA and LDA both have inferior fits.
+
+#####G.
+```{r}
+library(class)
+set.seed(1)
+knn.pred=knn(as.matrix(train.X),as.matrix(test.X),as.matrix(Direction[!test]) ,k=2)
+table(knn.pred,Direction[test])
+mean(knn.pred==Direction[test])
+knn.pred=knn(as.matrix(train.X),as.matrix(test.X),as.matrix(Direction[!test]) ,k=3)
+table(knn.pred,Direction[test])
+mean(knn.pred==Direction[test])
+knn.pred=knn(as.matrix(train.X),as.matrix(test.X),as.matrix(Direction[!test]) ,k=4)
+table(knn.pred,Direction[test])
+mean(knn.pred==Direction[test])
+knn.pred=knn(as.matrix(train.X),as.matrix(test.X),as.matrix(Direction[!test]) ,k=5)
+table(knn.pred,Direction[test])
+mean(knn.pred==Direction[test])
+knn.pred=knn(as.matrix(train.X),as.matrix(test.X),as.matrix(Direction[!test]) ,k=10)
+table(knn.pred,Direction[test])
+mean(knn.pred==Direction[test])
+
+qda.fit.train=qda(Direction ~ Lag1 + Lag2, data=Weekly ,subset= !test)
+qda.fit.train
+qda.probs.test=predict(qda.fit.train,Weekly.test)
+qda.class = qda.probs.test$class
+table(qda.class,Direction[test])
+mean(qda.class==Direction[test])
+```
+
+Adding additional KNN points increases the performance of KNN; however, KNN performance still lags LDA.  Adding additional predictors to QDA only seems to make the fit accuracy  worse.
+
+###Problem 11
+#####A.
+```{r}
+mpg01 <- rep(0, dim(Auto)[1])
+mpg01[Auto$mpg > median(Auto$mpg)] <- 1
+Auto <- cbind(Auto, mpg01)
+```
+
+#####B.
+```{r}
+summary(Auto)
+
+table(Auto$mpg01, Auto$cylinders)
+#More cylinders = less likely to have mpg01 = 1
+
+table(Auto$mpg01, Auto$origin)
+#Japanese and European cars seem more fuel efficient, American cars less so
+
+plot(as.factor(Auto$mpg01), Auto$displacement)
+#Lower displacement implies more fuel efficient
+
+plot(as.factor(Auto$mpg01), Auto$horsepower)
+#Lower horsepower implies more fuel efficient
+
+plot(as.factor(Auto$mpg01), Auto$weight)
+#Lower weight implies more fuel efficient
+
+plot(as.factor(Auto$mpg01), Auto$acceleration)
+#Slower acceleration implies more fuel efficient
+
+plot(as.factor(Auto$mpg01), Auto$year)
+#Later model year implies more fuel efficient
+```
+
+#####C.
+```{r}
+set.seed(1)
+data.length <- dim(Auto)[1]
+sample.set <- sample(seq(1, data.length), data.length/2, replace = FALSE)
+train <- rep(FALSE, data.length)
+train[sample.set] <- TRUE
+test.set <- Auto[!train,]
+#train.set <- Auto[train,]
+```
+
+#####D.
+```{r}
+auto.lda.fit<-lda(mpg01  ~ weight+year, data=Auto, subset=train)
+auto.lda.fit
+auto.lda.predict<-predict(auto.lda.fit, newdata=test.set)
+table(test.set$mpg01, auto.lda.predict$class)
+mean(test.set$mpg01==auto.lda.predict$class)
+```
+
+#####E.
+```{r}
+auto.qda.fit=qda(mpg01  ~ weight+year, data=Auto, subset=train)
+auto.qda.fit
+auto.qda.predict<-predict(auto.qda.fit, newdata=test.set)
+table(test.set$mpg01, auto.qda.predict$class)
+mean(test.set$mpg01==auto.qda.predict$class)
+```
+
+#####F.
+```{r}
+auto.glm.fit=glm(mpg01  ~ weight+year, data=Auto, family=binomial, subset=train)
+summary(auto.glm.fit)
+auto.glm.predict <- predict(auto.glm.fit, newdata=test.set, type = "response")
+auto.glm.pred.test=rep(0,data.length/2)
+auto.glm.pred.test[auto.glm.predict >.5]=1
+mean(test.set$mpg01 == auto.glm.pred.test)
+table(test.set$mpg01,auto.glm.pred.test)
+
+```
+
+
+#####G.
+```{r}
+set.seed(1)
+standardized.X=scale(subset(Auto, select=c(weight, year)))
+train.X=standardized.X[train,]
+test.X=standardized.X[!train,]
+train.Y=Auto$mpg01[train]
+test.Y=Auto$mpg01[!train]
+test_loops = c(1, 2, 3, 4, 5, 7, 10, 12, 15, 20, 25, 30, 40, 50)
+for (n in test_loops){
+  knn.pred=knn(train.X,test.X,train.Y,k=n)
+  print(paste(n, mean(test.Y==knn.pred)))
+}
+```
+
+2 nearest neighbor seems to work the best.  We get a test error of 93% using 2 nearest neighbor - which outperforms all the other classifiers.
+
+###Problem 12
+#####A.
+```{r}
+Power=function(){
+  print(2^3)
+}
+
+Power()
+```
+
+#####B.
+```{r}
+Power2=function(x,a){
+  print(x^a)
+}
+
+Power2(3,8)
+```
+
+#####C.
+```{r}
+Power2(10,3)
+Power2(8,17)
+Power2(131,3)
+```
+
+#####D.
+```{r}
+Power3=function(x,a){
+  return(x^a)
+}
+```
+
+#####E.
+```{r}
+my_seq = seq(1, 10)
+ret_seq = rep(0, length(my_seq))
+loop_counter = 1
+for(element in my_seq){
+  ret_seq[loop_counter] = Power3(element, 2)
+  loop_counter=loop_counter+1
+}
+plot(my_seq, ret_seq)
+```
+
+#####F.
+```{r}
+PowerPlot = function(x, a){
+  ret_seq = rep(0, length(x))
+  loop_counter = 1
+  for(element in x){
+    ret_seq[loop_counter] = Power3(element, a)
+    loop_counter=loop_counter+1
+  }
+  plot(x, ret_seq)
+}
+
+PowerPlot(1:10, 3)
+```
+
+###Exercise 13
+TODO

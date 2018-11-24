@@ -120,3 +120,265 @@ plot(small_model)
 ```
 
 Observations 323, 326, and 327 all seem to have unusually high mileage, and the Q-Q plot seems to imply this as well.  Nothing seems unusual in the leverage plots.  323, 326, and 327 don't have unusually high leverage, though.
+
+#####E
+```{r}
+interaction_model <- lm (mpg ~ weight*displacement+weight*year, data = cordf)
+summary(interaction_model)
+
+```
+
+We include weight, despite the fact that it only appears marginally statistically significant, given the two interaction effects.  Weight and displacement, and weight and year, both are statistically significant.
+
+#####F
+```{r}
+transformation_model_3 <- lm (mpg ~ weight*year + I(log(year)) +I(log(displacement))+I(log(weight)) , data = cordf)
+summary(transformation_model_3)
+
+```
+
+Log transforming the variables, while performing the weight and year interaction, produces the best fit.  Using the log transform and the square root transform produces very similar results.
+
+###Problem 10
+#####A & B
+```{r}
+carseats_model <- lm(Sales ~ Price + Urban + US, data = Carseats)
+summary(carseats_model)
+```
+
+We fit the model using Price, Urban, and US.  Urban looks to have a very low statistical significance - ergo we drop it and refit the model.
+
+```{r}
+carseats_model <- lm(Sales ~ Price + US, data = Carseats)
+summary(carseats_model)
+```
+
+We have a higher adjusted r^2 when we remove the Urban indicator.  Sales are 1.2 units higher in US locations.  Additionally, for every 1 dollar increase in price, sales go down by .054 units.
+
+#####C
+Sales = -.054 * Price + 1.2 * USYes + e
+
+#####D
+We can reject the null hypothesis that B equals for Price and USYes
+
+#####E
+Already done.
+
+#####F
+The fitted model explains 23.5% of the variation.  
+
+#####G
+```{r}
+confint(carseats_model)
+```
+
+#####H
+```{r}
+par(mfrow=c(2,2))
+plot(carseats_model)
+```
+
+There is minimal evidence of outliers - most of the points line along the line in the Q-Q plot.  There is one particular point with high leverage (Position 43), but it seems to be fit relatively well.  
+
+###Problem 11
+#####A
+```{r}
+set.seed (1)
+x = rnorm(100)
+y = 2*x + rnorm(100)
+sim_model = lm(y ~ x + 0)
+summary(sim_model)
+```
+The coefficient B is 1.9919.  The coefficient standard error is .107, and the associated t-value is 18.73.  The p-value of this statistic is 2e-16 - so extremely unlikely to happen by chance alone.
+
+#####B
+```{r}
+inverse_model = lm(x ~ y + 0)
+summary(inverse_model)
+```
+The coefficient B is .39111  The coefficient standard error is .0209, and the associated t-value is 18.73.  The p-value of this statistic is 2e-16 - so extremely unlikely to happen by chance alone.
+
+#####C
+The t-stats and p-values are the same.
+
+#####E
+The formula above for t-values is symmetric about x and y.  If we substitute y in for x, and x in for y, then we get same answer - which ties out with our empirical results above.
+
+#####F
+```{r}
+sim_model_constant = lm(y ~ x)
+summary(sim_model_constant)
+
+inverse_model_constant = lm(x ~ y)
+summary(inverse_model_constant)
+```
+
+Empirically, we can see the two t-values on the two coefficents are the same.
+
+###Problem 12
+#####A
+See notes
+
+#####B
+```{r}
+set.seed(1)
+x_sim = rnorm(100, 0, 1)
+y_sim = rnorm(100, 0, 1)
+x_model = lm(y_sim ~ x_sim+0)
+summary(x_model)
+y_model = lm(x_sim ~ y_sim+0)
+summary(y_model)
+```
+
+#####C
+Now we need to engineer our results such that sum(y^2) = sum(x^2).  We simply rescale our y values such that the sums are the sum, and check our results.  Our empirical results confirm our analytical results.
+```{r}
+set.seed(1)
+x_sim = rnorm(100, 0, 1)
+y_sim = rnorm(100, 0, 1)
+rescaled_y = ((sum(x_sim^2)/sum(y_sim^2))^.5)*y_sim
+x_model = lm(rescaled_y ~ x_sim+0)
+summary(x_model)
+y_model = lm(x_sim ~ rescaled_y+0)
+summary(y_model)
+```
+
+###Problem 13
+#####A
+```{r}
+set.seed(1)
+x = rnorm(100, 0, 1)
+```
+
+#####B
+```{r}
+eps = rnorm(100, 0, 0.25)
+```
+
+#####C
+```{r}
+y = -1 + 0.5*x +eps
+```
+
+In our model, B(0) is -1, and B(1) is 0.5.
+
+#####D
+```{r}
+plot(y ~ x)
+```
+
+We observe a positive correlation between x and y
+
+#####E
+```{r}
+model = lm(y ~ x)
+summary(model)
+```
+
+Our estimates are both within 1 standard deviation of our known model values.
+
+#####F
+```{r}
+plot(y ~ x)
+abline(model, col = "red")
+abline(a=-1, b = 0.5, col = "blue")
+legend(x="bottomright", legend = c("model", "estimate"), lty = c(1, 1), col = c("blue", "red"))
+```
+
+#####G
+```{r}
+quad_model = lm(y ~ x + I(x^2))
+summary(quad_model)
+```
+We find minimal evidence for a quadratic model (p=.166), as we would have expected since we know this model is misspecified.
+
+#####H
+```{r}
+x2 = rnorm(100, 0, 1)
+eps2 = rnorm(100, 0, 0.05)
+y2 = -1 + 0.5*x2 +eps2
+plot(y2 ~ x2)
+model2 = lm(y2 ~ x2)
+summary(model2)
+abline(model2, col = "red")
+abline(a=-1, b = 0.5, col = "blue")
+legend(x="bottomright", legend = c("model", "estimate"), lty = c(1, 1), col = c("blue", "red"))
+quad_model2 = lm(y2 ~ x2 + I(x2^2))
+summary(quad_model2)
+```
+
+#####I
+```{r}
+x3 = rnorm(100, 0, 1)
+eps3 = rnorm(100, 0, 1.25)
+y3 = -1 + 0.5*x3 +eps3
+plot(y3 ~ x3)
+model3 = lm(y3 ~ x3)
+summary(model3)
+abline(model3, col = "red")
+abline(a=-1, b = 0.5, col = "blue")
+legend(x="bottomright", legend = c("model", "estimate"), lty = c(1, 1), col = c("blue", "red"))
+quad_model3 = lm(y3 ~ x3 + I(x3^2))
+summary(quad_model3)
+```
+
+#####J
+The width of the confidence interval goes down with the variance
+
+###Problem 1
+#####A
+```{r}
+set.seed(1)
+x1=runif(100)
+x2=0.5*x1+rnorm(100)/10
+y=2+2*x1+0.3*x2+rnorm(100)
+```
+
+#####B
+```{r}
+plot(x2~x1)
+```
+
+#####C
+```{r}
+model = lm(y ~ x1 + x2)
+summary(model)
+```
+
+We can reject the null hypothesis that B(0) is 0 at a 5% confidence level.  B(1) we cannot reject the null hypothesis is 0 at 5% level.
+
+#####D
+```{r}
+model_1 = lm(y ~ x1)
+summary(model_1)
+```
+
+#####E
+```{r}
+model_2 = lm(y ~ x2)
+summary(model_2)
+```
+
+We can reject the null hypothesis that B(0) is 0.  Individually, we can also reject the null hypothesis athat B(1) is 0.
+
+#####F
+The results in C & E contradict each other.  E on its own is statistically significant, but not after controlling for C.
+
+#####G
+```{r}
+x1=c(x1, 0.1)
+x2=c(x2, 0.8)
+y=c(y,6)
+model = lm(y ~ x1 + x2)
+summary(model)
+model_1 = lm(y ~ x1)
+summary(model_1)
+model_2 = lm(y ~ x2)
+summary(model_2)
+```
+
+The new observation shifts x2 to be the  statistically significant coefficient, not x1.
+
+###Problem 15
+TBD
+

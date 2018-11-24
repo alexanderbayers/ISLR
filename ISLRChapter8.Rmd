@@ -1,0 +1,351 @@
+---
+title: "ISLR Chapter 8"
+author: "Alex Bayers"
+date: "11/19/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Exercise 3
+```{r}
+data <- seq(from = 0, to = 1, by = .01)
+
+gini.index <- function(probability){
+  2*probability*(1-probability)
+}
+
+cross.entropy <- function(probability){
+  -(probability)*log(probability) - (1-probability)*log(1 - probability)
+}
+
+classification.error <- function(probability){
+  return(1 - max(probability, 1 - probability))
+}
+
+plot(x = data, y = gini.index(data), type = "l", col = "red", ylim = c(0, .75))
+lines(x = data, y = cross.entropy(data), col = "blue")
+lines(x = data, y = apply(as.matrix(data), 1, classification.error), col = "green")
+
+legend("topleft", legend = c("Gini", "Cross-Entropy", "Class Error"), col = c("red", "blue", "green"), lty = 1, cex = 0.6)
+
+```
+
+###Exercise 5
+```{r}
+tree <- c(.1, .15, .2, .2, .55, .6, .6, .65, .7, .75)
+mean(tree)
+sum(tree >= .5)/length(tree)
+```
+The average probility is .45, so the average probability rule classifies to green.  By comparison,   60% of the trees classify to red, so the majority vote approach classifies to red.
+
+###Exercise 6
+We search along every axis, and find the optimal split within that axis.  Then, we compare the best aplit amongst every axis, and choose the split that minimizes our objective criteria.  We then loop through every area, and do the splits accordingly.  Whichever one minimizes the value is the split we use.
+
+###Exercise 7
+```{r}
+library(randomForest)
+library(MASS)
+set.seed(1)
+train = sample(1:nrow(Boston), nrow(Boston)/2)
+boston.test=Boston[-train ,"medv"]
+mtry.vector <- c(4, 5, 7, 13)
+ntree.vector <- seq(20, 500, 10)
+rf.matrix <- matrix(NA, nrow = length(ntree.vector), ncol = length(mtry.vector), dimnames = list(ntree.vector, mtry.vector))
+for (i in ntree.vector){
+  for (j in mtry.vector){
+    rf.boston <- randomForest(medv ~., data = Boston, mtry = j, ntree = i, subset = train)
+    yhat.rf <- predict(rf.boston ,newdata=Boston[-train ,])
+    mse.rf <- mean((yhat.rf-boston.test)^2)
+    rf.matrix[as.character(i), as.character(j)] <- mse.rf
+  }
+}
+
+plot(x = ntree.vector, y = rf.matrix[,"5"], type = "l", col = "blue", ylim = c(10.5, 14))
+lines(x = ntree.vector, y = rf.matrix[,"4"], type = "l", col = "red")
+lines(x = ntree.vector, y = rf.matrix[,"7"], type = "l", col = "orange")
+lines(x = ntree.vector, y = rf.matrix[,"13"], type = "l", col = "black")
+
+```
+
+A middling number entries in the mtry work better in the test set, with values performing best in 5 or 7 values.  We see that prediction errors are nearly minized with 5 predictors entering and 50 trees, or 7 predictors entering and 150 trees.  Interestingly, the prediction errors don't seem to be very smooth - there is quite a bit of jaggedness in the prediction errors.  Further, random forests seem to outperform bagging.
+
+###Exercise 8
+#####A
+```{r}
+library(ISLR)
+library(tree)
+library(randomForest)
+set.seed(2)
+train = sample(1:nrow(Carseats), nrow(Carseats)/2)
+```
+
+#####B
+```{r}
+tree.carseats <- tree(Sales ~., data = Carseats, subset = train)
+par(mfrow = c(1,1))
+plot(tree.carseats)
+text(tree.carseats, pretty = 0)
+
+#Prediction and diagnostics
+yhat <- predict(tree.carseats, newdata = Carseats[-train,])
+carseats.test=Carseats[-train ,"Sales"]
+plot(yhat, carseats.test)
+abline(0,1)
+mean((yhat-carseats.test)^2)
+```
+
+#####C
+```{r}
+#Now we go back and prune the trees
+cv.carseats <- cv.tree(tree.carseats)
+par(mfrow = c(1,2))
+plot(cv.carseats$size ,cv.carseats$dev ,type="b")
+plot(cv.carseats$k ,cv.carseats$dev ,type="b")
+
+#Fit pruned tree
+par(mfrow = c(1,1))
+prune.carseats=prune.tree(tree.carseats,best=16)
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+
+#Prediction and diagnostics
+yhat.prune <- predict(prune.carseats, newdata = Carseats[-train,])
+plot(yhat.prune, carseats.test)
+abline(0,1)
+mean((yhat.prune-carseats.test)^2)
+
+#Fit pruned tree
+par(mfrow = c(1,1))
+small.carseats=prune.tree(tree.carseats,best=2)
+plot(small.carseats)
+text(small.carseats, pretty = 0)
+
+#Prediction and diagnostics
+yhat.small <- predict(small.carseats, newdata = Carseats[-train,])
+plot(yhat.small, carseats.test)
+abline(0,1)
+mean((yhat.small-carseats.test)^2)
+
+var(carseats.test)
+```
+
+The model seems to be minimized with size 16, which we go back and refit.  The model fit seems worse, however.  On the training set there is also a dip at 2, which we proceed to refit. The 16 point fit is much better than the 2 point fit on the test set, however, so we proceed to use the full model.
+
+```{r}
+bag.carseats=randomForest(Sales~.,data=Carseats,subset=train,mtry=10,importance =TRUE)
+print(importance(bag.carseats))
+varImpPlot(bag.carseats)
+yhat.bag <- predict(bag.carseats ,newdata=Carseats[-train ,])
+mean((yhat.bag-carseats.test)^2)
+```
+The test error is 2.4, which is much better than the predictions from the tree predictor.  I think this is because it places a much greater emphasis on price, ranking it alongside shelve location, and presumably the effect of price is closer to linear.
+
+```{r}
+rf.carseats=randomForest(Sales~.,data=Carseats,subset=train,mtry=3,importance =TRUE)
+print(importance(rf.carseats))
+varImpPlot(rf.carseats)
+yhat.rf <- predict(rf.carseats ,newdata=Carseats[-train ,])
+mean((yhat.rf-carseats.test)^2)
+
+rf.carseats.new=randomForest(Sales~.,data=Carseats,subset=train,mtry=5,importance =TRUE)
+print(importance(rf.carseats.new))
+varImpPlot(rf.carseats.new)
+yhat.rf.new <- predict(rf.carseats.new ,newdata=Carseats[-train ,])
+mean((yhat.rf.new-carseats.test)^2)
+```
+
+The relative weighting of the price and shelving go up as we add in more potential predictors.  The test accuracy seems to increase with the number of predictors entering the tree, with going from 2.95 with p = 3, to 2.61 with p = 5, to 2.37 with p = 10 (bagging).
+
+###Exercise 9
+#####A
+```{r}
+train <- sample(1:dim(OJ)[1], 800, replace = FALSE)
+```
+
+#####B
+```{r}
+OJ.tree <- tree(Purchase ~., data = OJ, subset = train)
+summary(OJ.tree)
+```
+The tree has 19 terminal nodes.  The error rate is 10%.
+
+#####C
+```{r}
+OJ.tree
+```
+For node 8, if LoyalCH is less than .036, the customer buys Minute Maid.  Note that there are a number of splits to accomodate node purity, as there is an additional node where if ch < .276 the customer buys ch.
+
+#####D
+```{r}
+plot(OJ.tree)
+text(OJ.tree)
+```
+
+#####E
+```{r}
+tree.pred=predict(OJ.tree,OJ[-train,],type="class")
+table(tree.pred ,OJ[-train,]$Purchase)
+1 - (155+68)/sum(table(tree.pred ,OJ[-train,]$Purchase))
+```
+The test error rate is 17.4%.
+
+#####F, G, & H
+```{r}
+cv.OJ <- cv.tree(OJ.tree, FUN = prune.misclass)
+par(mfrow = c(1,2))
+plot(cv.OJ$size ,cv.OJ$dev ,type="b")
+plot(cv.OJ$k ,cv.OJ$dev ,type="b")
+```
+
+6 nodes looks to be the appropriate amount of pruning.
+
+#####I
+```{r}
+prune.OJ <- prune.misclass(OJ.tree, best = 6)
+plot(prune.OJ)
+text(prune.OJ, pretty = 0)
+```
+
+#####J & K
+```{r}
+train.full <- predict(OJ.tree, type = "class")
+#Return the training error rate for the full tree
+1 - sum(train.full == OJ[train,]$Purchase)/800
+
+train.prune <- predict(prune.OJ, type = "class")
+#Return the training error rate for the pruned tree
+1 - sum(train.prune == OJ[train,]$Purchase)/800
+
+test.full <- predict(OJ.tree, newdata = OJ[-train,], type = "class")
+#Return the test error rate for the full tree
+1 - sum(test.full == OJ[-train,]$Purchase)/270
+
+test.prune <- predict(prune.OJ, newdata = OJ[-train,], type = "class")
+#Return the test error rate for the pruned tree
+1 - sum(test.prune == OJ[-train,]$Purchase)/270
+```
+
+Test and training errors are the same for both approaches.
+
+###Exercise 10
+#####A
+```{r}
+set.seed(10)
+complete.hitters <- Hitters[complete.cases(Hitters),]
+complete.hitters$LogSalary <- log(complete.hitters$Salary)
+```
+
+#####B
+```{r}
+train <- complete.hitters[1:200,]
+test <- complete.hitters[201:263,]
+```
+
+#####C
+```{r}
+library(gbm)
+set.seed(1)
+hitter.gbm <- function(lambda){
+  set.seed(13)
+  gbm(LogSalary ~.-Salary, data = train, distribution = "gaussian", n.trees = 100, shrinkage = lambda)
+}
+  
+lambda.seq <- seq(from = 0.05, to =1, by =0.05)
+model.names <- paste("model_", lambda.seq, sep = '')
+models <- lapply(lambda.seq, hitter.gbm)
+names(models) <- model.names
+
+rmse.boost <- vector(length=length(lambda.seq))
+for (i in 1:length(rmse.boost)){
+  rmse.boost[i] <- (sum((predict(models[[i]], newdata = train, n.trees = 100) - train$LogSalary)^2)/200)
+}
+plot(x = lambda.seq, y = rmse.boost)
+points(x=lambda.seq[which.min(rmse.boost)], y = min(rmse.boost), col = 'red', cex = 2, pch = 20)
+```
+
+#####D
+```{r}
+rmse.test <- vector(length=length(lambda.seq))
+for (i in 1:length(rmse.test)){
+  rmse.test[i] <- (sum((predict(models[[i]], newdata = test, n.trees = 100) - test$LogSalary)^2)/63)
+}
+plot(x = lambda.seq, y = rmse.test)
+points(x=lambda.seq[which.min(rmse.test)], y = min(rmse.test), col = 'red', cex = 2, pch = 20)
+print(min(rmse.test))
+```
+
+#####E
+We will compare our models to lasso and ridge regression.
+```{r}
+#Ridge regression model
+library(glmnet)
+set.seed (1)
+my.grid=10^seq(10,-2,length=100)
+x=model.matrix(LogSalary~.-Salary,train)[,-1]
+y = train$LogSalary
+cv.out=cv.glmnet(x,y,alpha=0)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+ridge.mod=glmnet(x,y,alpha=0,lambda=my.grid, thresh =1e-12)
+x.test <- model.matrix(LogSalary~.-Salary,test)[,-1]
+y.test <- test$LogSalary
+ridge.pred=predict(ridge.mod,s=bestlam,newx=x.test)
+mean((ridge.pred-y.test)^2)
+
+cv.outnew=cv.glmnet(x,y,alpha=1)
+plot(cv.outnew)
+bestlam.new=cv.outnew$lambda.min
+lasso.mod=glmnet(x,y,alpha=1,lambda=my.grid, thresh =1e-12)
+lasso.pred=predict(lasso.mod,s=bestlam,newx=x.test)
+mean((lasso.pred-y.test)^2)
+```
+
+#####F
+```{r}
+set.seed(13)
+x <- gbm(LogSalary ~.-Salary, data = train, distribution = "gaussian", n.trees = 100, interaction.depth = 4, shrinkage = 0.65)
+summary(x)
+```
+
+Number of times at bat explains 25% of the variance. Number of put outs explains 10%, with walks, assists, home runs, and runs batted in explaining 5% of each.
+
+#####G
+```{r}
+library(randomForest)
+bag.salary=randomForest(LogSalary~.-Salary,data=train, mtry=6, ntree=500)
+yhat.bag = predict(bag.salary ,newdata=test)
+mean((yhat.bag-test$LogSalary)^2)
+
+library(randomForest)
+bag.salary=randomForest(LogSalary~.-Salary,data=train, mtry=18, ntree=500)
+yhat.bag = predict(bag.salary ,newdata=test)
+mean((yhat.bag-test$LogSalary)^2)
+```
+
+Ayayay random forest.  It massively outperforms the lasso, despite us using effectively minimal tuning.  The test MSE is only .216.
+
+###Exercise 11
+#####A
+```{r}
+set.seed(342)
+train <- 1:1000
+Caravan$Purchase = ifelse(Caravan$Purchase == "Yes", 1, 0)
+Caravan.train <- Caravan[train,]
+Caravan.test <- Caravan[-train,]
+gbm.caravan <- gbm(Purchase ~., data = Caravan.train, distribution = "bernoulli", shrinkage = .01, n.trees = 1000)
+summary(gbm.caravan)
+Train.purchase <- ifelse(predict(gbm.caravan, newdata = Caravan.train, n.trees = 1000, type = "response") > .2, 1, 0)
+table(Caravan.train$Purchase, Train.purchase)
+Test.purchase <- ifelse(predict(gbm.caravan, newdata = Caravan.test, n.trees = 1000, type = "response") > .2, 1, 0)
+table(Caravan.test$Purchase, Test.purchase)
+34/(34+137)
+glm.model <- glm(Purchase ~ ., data = Caravan.train)
+reduced.glm.model <- glm(Purchase ~ PPERSAUT + PWAOREG + AWAOREG, data = Caravan.train)
+Test.glm.purchase <- ifelse(predict(reduced.glm.model, newdata = Caravan.test, type = "response") > .2, 1, 0)
+table(Caravan.test$Purchase, Test.glm.purchase)
+```
+
+About 19.9% of those predicted to make a purchase make one.  By comparsion, our filtered model predicts 12.5% of the purchases, and it predicts substantially fewer purchases.

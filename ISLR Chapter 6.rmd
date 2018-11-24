@@ -1,0 +1,471 @@
+---
+title: "ISLR Chapter 6.rmd"
+author: "Alex Bayers"
+date: "10/27/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Chapter 6 Problems
+
+###Problem 1
+#####1
+a.  By definition, the best subset model will have the lowest training error since it is the model that fits the best on that data.
+b.  Uncertain - depending on the model structure any of them can fit the best.
+c. i.  True
+#####2
+True
+#####3
+False - there isn't necessarily any relationship.
+#####4
+False
+#####5
+False - the active set can change easily.
+
+####Problem 2
+a.  i.  It is less flexible, so this statment is false.
+ii.  False - again it is still less flexible.
+iii.  True - it is less flexible, and is not an unbiased estimator.
+iv.  Flase  - it has less variance than the least squares estimator.
+b.  i.  False, it's less flexible.
+ii.  False, it's less flexible.
+iii.  True.
+iv.  False
+c.  i.  False - more variance, less bias
+ii.  True - more bias, more flexible.
+iii.  False - it's more flexible.
+iv.  False - it's more flexible.
+
+###Problem 3
+a.  iv is correct.
+b.  ii or iv is correct - RSS  will decrease as s increases, but it's unclear what the asymptotic behavior will be.
+c.  Variance will steadily increase
+d.  Bias will steadily decrease
+e.  Irreducible error will remain constant.
+
+###Problem 4
+a.  iii
+b,  ii
+c.  iv
+d.  iii
+e.  v
+
+###Problem 8
+######A & B
+```{r}
+set.seed(2)
+b0 <- rnorm(1)
+b1 <- rnorm(1)
+b2 <- rnorm(1)
+b3 <- rnorm(1)
+x <- rnorm(100)
+e <- rnorm(100)
+y <- b0 + b1*x + b2*x^2 +b3*x^3 + e
+print(c(b0, b1, b2, b3))
+```
+
+The model we're fitting is  -0.8969145 + 0.1848492 * x + 1.5878453 * x^2 -1.1303757 * x^3 
+
+#####C
+```{r}
+library(leaps)
+reg_data <- data.frame(y, x)
+reg_model <- regsubsets(y ~ poly(x, 10, raw = TRUE), data = reg_data)
+reg_summary <- summary(reg_model)
+print(reg_summary)
+par(mfrow=c(2,2))
+plot(reg_summary$cp, type = "l")
+points(which.min(reg_summary$cp), reg_summary$cp[which.min(reg_summary$cp)], col="red",cex=2,pch=20)
+plot(reg_summary$bic, type = "l")
+points(which.min(reg_summary$bic), reg_summary$bic[which.min(reg_summary$bic)], col="red",cex=2,pch=20)
+plot(reg_summary$adjr2, type = "l")
+points(which.max(reg_summary$adjr2), reg_summary$adjr2[which.max(reg_summary$adjr2)], col="red",cex=2,pch=20)
+
+#Results for the cp, bic model
+coef(reg_model, 2)
+
+#Results for the r^2 model
+coef(reg_model, 4)
+
+```
+
+All three model selection criteria imply different results.
+
+Cp implies two terms - second and third degree terms.  Our model is the following.
+
+ -0.9271256 + 1.6448130 * x^2  - 1.0968059 * x^3
+
+Which seems consistent with the model we're generating the data from.
+
+
+Adjusted-R^2 implies four terms - first, second, fifth, and seventh degree terms.
+
+ -0.93728643 + -0.61602905*x + 1.64565275 * x^2 + -0.38978468 * x^5 + 0.03729776 * x^7
+ 
+ Which seems like a much worse fit the Cp/BIC implied model.
+ 
+ #####D
+```{r}
+model_matrix <- model.matrix(y ~ poly(x, 10, raw = TRUE), data = reg_data)
+fwd_model <- regsubsets(y ~ poly(x, 10, raw = TRUE), data = reg_data, method = "forward")
+bkwd_model <- regsubsets(y ~ poly(x, 10, raw = TRUE), data = reg_data, method = "backward")
+fwd_summary <- summary(fwd_model)
+bkwd_summary <- summary(bkwd_model)
+print(fwd_summary)
+print(bkwd_summary)
+
+#Plots for forward summary
+par(mfrow=c(2,2))
+plot(fwd_summary$cp, type = "l")
+points(which.min(fwd_summary$cp), fwd_summary$cp[which.min(fwd_summary$cp)], col="red",cex=2,pch=20)
+plot(fwd_summary$bic, type = "l")
+points(which.min(fwd_summary$bic), fwd_summary$bic[which.min(fwd_summary$bic)], col="red",cex=2,pch=20)
+plot(fwd_summary$adjr2, type = "l")
+points(which.max(fwd_summary$adjr2), fwd_summary$adjr2[which.max(fwd_summary$adjr2)], col="red",cex=2,pch=20)
+coef_fwd=coef(fwd_model, 3)
+coef_fwd
+pred_fwd=model_matrix[,names(coef_fwd)]%*%coef_fwd
+mean((y-pred_fwd)^2)
+```
+
+All three criteria for the forward selection model point to a three term model.  The coefficients of the three term model are as follows:
+
+-0.89634772 + 1.61126845 * x^2 -0.96515559 * x^3 - 0.03129297 * x^5
+
+Intuitively, I find it surprising that the fifth degree polynomial makes the cut, particularly with the size of the coefficient.  Therefore, we will refit two separate models with lm, so we can access the greater diagnostics.
+
+```{r}
+first_three <- lm(y ~ x + I(x^2) + I(x^3), data = reg_data)
+summary(first_three)
+
+with_five <- lm(y ~ I(x^2) + I(x^3) + I(x^5), data = reg_data)
+summary(with_five)
+```
+
+Interestingly, the t-statistic on the fifth degree polynomial is .226, while the coefficient on the third degree polynomial is further away from the truth.  We now try refitting it with a backwards stepwise model.
+
+```{r}
+par(mfrow=c(2,2))
+plot(bkwd_summary$cp, type = "l")
+points(which.min(bkwd_summary$cp), bkwd_summary$cp[which.min(bkwd_summary$cp)], col="red",cex=2,pch=20)
+plot(bkwd_summary$bic, type = "l")
+points(which.min(bkwd_summary$bic), bkwd_summary$bic[which.min(bkwd_summary$bic)], col="red",cex=2,pch=20)
+plot(bkwd_summary$adjr2, type = "l")
+points(which.max(bkwd_summary$adjr2), bkwd_summary$adjr2[which.max(bkwd_summary$adjr2)], col="red",cex=2,pch=20)
+coef(bkwd_model, 2)
+
+coef_bkwd=coef(bkwd_model, 3)
+coef_bkwd
+pred_bkwd=model_matrix[,names(coef_bkwd)]%*%coef_bkwd
+mean((y-pred_bkwd)^2)
+```
+
+Both CP and BIC for the backwards selected model imply a two varible model, while the Adjusted R2 implies a three variable model.  I inspect the two variable model now.
+
+ -0.9271256 + 1.6448130 * x^2  - 1.0968059 * x^3
+
+In line with the best subset selction model.
+
+#####E
+```{r}
+set.seed(2)
+library(glmnet)
+cv.out=cv.glmnet(poly(x, 10, raw = TRUE),y,alpha=1)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+print(bestlam)
+lasso.mod=glmnet(poly(x, 10, raw = TRUE),y,alpha=1,lambda=bestlam)
+predict(lasso.mod,type="coefficients",s=bestlam)
+lasso.pred = predict(lasso.mod,s=bestlam,newx = poly(x, 10, raw = TRUE))
+mean((lasso.pred-y)^2)
+```
+
+The Lasso does a better job of identifying the true coefficients, though it does spuriously identify a fifth order coefficient.  Within sample, the lasso does a slightly worse job of prediction than forward stepwise regression, but a much better job than backward stepwise regression.
+
+#####F
+```{r}
+b7 <- rnorm(1)
+new_e <- rnorm(100)
+new_y <- b0 + b7*x^7 + new_e
+cv.out_new=cv.glmnet(poly(x, 10, raw = TRUE),new_y,alpha=1)
+plot(cv.out_new)
+bestlam.new=cv.out_new$lambda.min
+print(bestlam.new)
+lasso.mod.new=glmnet(poly(x, 10, raw = TRUE),new_y,alpha=1,lambda=bestlam.new)
+predict(lasso.mod.new,type="coefficients",s=bestlam.new)
+lasso.pred.new = predict(lasso.mod.new,s=bestlam.new,newx = poly(x, 10, raw = TRUE))
+mean((lasso.pred.new-new_y)^2)
+reg_data <- data.frame(new_y, x)
+reg_model <- regsubsets(new_y ~ poly(x, 10, raw = TRUE), data = reg_data)
+reg_summary <- summary(reg_model)
+print(reg_summary)
+coef_full <- coef(reg_model, 1)
+pred_full=model_matrix[,names(coef_full)]%*%coef_full
+mean((pred_full-new_y)^2)
+plot(reg_summary$bic, type = "l")
+points(which.min(reg_summary$bic), reg_summary$bic[which.min(reg_summary$bic)], col="red",cex=2,pch=20)
+```
+
+BIC is minimized with a 1 coefficient model.  The one coefficient best subset selection model materially beats the lasso (1.25 MSE vs 5.25 MSE), which makes sense given that the LASSO is not only selecting amongst the coefficients but is also shrinking them.  We also trying 10 fold cross validation.
+
+```{r}
+#predict.regsubsets <- function(object ,newdata ,id ,...){
+#  form=as.formula(object$call [[2]])
+#  mat=model.matrix(form,newdata)
+#  coefi=coef(object ,id=id)
+#  xvars=names(coefi)
+#  mat[,xvars]%*%coefi
+#}
+
+
+#k=10
+#set.seed (10)
+#folds=sample(1:k,nrow(reg_data),replace=TRUE)
+#cv.errors=matrix(NA,k,10, dimnames=list(NULL, paste(1:10)))
+#for (j in 1:10){
+#  best.fit <- regsubsets(new_y ~ poly(x, 10, raw = TRUE), data = reg_data)
+#  for (i in 1:10){
+#    pred <- predict(best.fit,reg_data[folds==j,]$x,id=i)
+#    cv.errors[j, i] <- mean((new_y[folds==j] - pred)^2)
+#  }
+#}
+
+#mean.cv.errors <- apply(cv.errors ,2,mean)
+#par(mfrow=c(1,1))
+#plot(mean.cv.errors, type='b')
+```
+
+###Problem 9
+#####A & B
+```{r}
+library(ISLR)
+set.seed(5)
+baseerror <- sd(College$Apps)
+print(baseerror)
+train=sample(c(TRUE,FALSE), nrow(College),rep=TRUE)
+test =(!train)
+College.model <- lm(Apps~., data = College[train,])
+summary(College.model)
+```
+
+We go through and remove everything with a sub 5% significance threshold.  This leaves us with PrivateYes, Accept, Enroll, Top10perc, Top25perc, F.Undergrad, Outstate, Room.Board, Expend, and Grad.Rate.
+
+```{r}
+small.model <- lm(Apps ~ Private + Accept + Enroll + Top10perc + Top25perc + F.Undergrad + Outstate + Room.Board + Expend + Grad.Rate, data = College[train,])
+summary(small.model)
+small.residual <- mean((College[test,]$Apps - predict(small.model, newdata = College[test,]))^2)
+sqrt(small.residual)
+```
+
+#####C Ridge Regression
+```{r}
+library(glmnet)
+y <- College$Apps
+myvars <- c("Apps", "Private", "Accept", "Enroll", "Top10perc", "Top25perc", "F.Undergrad", "Outstate", "Room.Board", "Expend", "Grad.Rate")
+x <- model.matrix(Apps ~., data = College[myvars])
+cv.out=cv.glmnet(x[train,],y[train],alpha=0, lambda = exp(seq(0, 10, .1)))
+plot(cv.out)
+lambda.min <- cv.out$lambda.min
+lambda.model <- glmnet(x[train,],y[train],alpha=0, lambda = exp(seq(0, 10, .1)))
+predict(lambda.model, s = lambda.min, type = "coefficients")
+mean((y[test]-predict(lambda.model, s = lambda.min, newx = x[test,]))^2)^.5
+```
+
+The test error is 1180 for ridge regression vs 1148 for OLS.
+
+#####D The Lasso
+```{r}
+big_x <- model.matrix(Apps ~., data = College)
+cv.out=cv.glmnet(big_x[train,],y[train],alpha=1)
+plot(cv.out)
+lambda.min <- cv.out$lambda.min
+lambda.model <- glmnet(big_x[train,],y[train],alpha=1)
+predict(lambda.model, s = lambda.min, type = "coefficients")
+mean((y[test]-predict(lambda.model, s = lambda.min, newx = big_x[test,]))^2)^.5
+```
+
+Interestingly, the lasso underperforms both ridge regression and OLS.
+
+#####E
+```{r}
+library(pls)
+set.seed(2)
+pcr.fit=pcr(Apps~., data=College[train,] ,scale=TRUE, validation ="CV")
+validationplot(pcr.fit, val.type = "RMSEP")
+summary(pcr.fit)
+pcr.pred <- predict(pcr.fit, College[test,], ncomp = 9)
+mean((pcr.pred - College[test,]$Apps)^2)^.5
+```
+
+It looks like we can get away with 9 principal components.
+
+The test error is 1700, which is much worse than the lasso or ridge regression.  I thought this was an error at first, but when we set p=17 we recover the OLS solution
+
+#####F
+```{r}
+set.seed(1)
+pls.fit <- plsr(Apps~., data = College, subset = train, scale = TRUE, validation = "CV")
+summary(pls.fit)
+validationplot(pls.fit, val.type = "RMSEP")
+pls.pred <- predict(pls.fit, College[test,], ncomp = 8)
+mean((pls.pred - College[test,]$Apps)^2)^.5
+```
+
+Using 8 components, we get a test error of 1148.   We chose 8 components based on the training set.
+
+#####G
+OLS fit: 1136
+Ridge regression: 1180
+Lasso: 1188
+PCR: 1711
+PLS: 1148
+
+OLS (Using variable selection) and PLS both fit the best out of sample.  This implies there is a problem with the varialble shrinkage and coming in ridge regression and the lasso, while PCR is wildly uncompetitive.
+
+###Exercise 10
+#####A & B
+```{r}
+set.seed(3)
+library(Rlab)
+x.matrix <- matrix(rnorm(20000), 1000, 20)
+e.matrix <- matrix(rnorm(1000), 1000, 1)
+s.matrix <- rbern(20, .25)
+c.matrix <- rnorm(20)
+y.matrix <- x.matrix %*% (s.matrix * c.matrix) + e.matrix
+full.data <- cbind(y.matrix, x.matrix)
+full.data.names <- c("y", paste0("x", 1:20, sept =""))
+full.data <- data.frame(full.data)
+colnames(full.data) <- full.data.names
+train <- sample(1:1000, 100, replace = FALSE)
+train.data <- full.data[train,]
+inclusion.matrix <- data.frame(s.matrix*c.matrix, row.names = paste0("x", 1:20, sept =""))
+print(inclusion.matrix)
+```
+
+#####C
+```{r}
+reg_model <- regsubsets(y ~., data = train.data, nvm = 20)
+reg_summary <- summary(reg_model)
+print(reg_summary)
+plot(sqrt(reg_summary$rss/100),xlab="Number of Variables ",ylab="RSS", type="l")
+```
+
+#####D,E, & F
+```{r}
+predict.regsubsets <- function(object ,newdata ,id ,...){
+  form=as.formula(object$call [[2]])
+  mat=model.matrix(form,newdata)
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+
+test = rep(TRUE, 1000)
+test[train] = FALSE
+val.errors = rep(NA, 20)
+beta.errors = rep(NA, 20)
+inclusion.matrix["(Intercept)", "s.matrix...c.matrix"] = 0
+for (i in 1:20){
+  val.errors[i] = sqrt(mean((full.data[test, "y"] - predict(reg_model, newdata = full.data[test,], id = i))^2))
+  inclusion.matrix[paste(i, "variable")] = 0
+  inclusion.matrix[names(coef(reg_model, id = i)), paste(i, "variable")] = coef(reg_model, id = i)
+  beta.errors[i] = sqrt(mean((inclusion.matrix[,paste(i, "variable")] - inclusion.matrix[,"s.matrix...c.matrix"])^2))
+}
+plot(val.errors, type = "l", xlab = "variable number", ylab = "RMSE")
+print(val.errors[which.min(val.errors)])
+which.min(val.errors)
+
+print(inclusion.matrix)
+
+fitted.model <- lm(y ~ x2 + x11 + x16 + x17 + x18 + x20 + x14, data = full.data[test,])
+summary(fitted.model)
+```
+
+The mean squared error is minimized with 6 datapoints, compared to our true value of 7.  The irreducible error is 1.06, which is pretty close to our true value of 1.  The fitted model misses the coefficent on x14, which is only -.167, and adds an intercept.  All the coefficent values are within .15 of the fitted values.
+
+We fit an OLS model to the ideal subset selection model, and use it to calculate coefficient standard errors.  The standard errors for each coefficient are on the order of .035, which means that our coefficient estimates are 4 standard deviations from the true value in extremis, which is substantially further away than we'd expect.  Further, given the magnitude of the coefficient standard error, we'd expect the 7 coefficent model to screen as statistically significant, which is indeed the case.  However, this model still predicts (slightly) worse than the 6 variable model.
+
+#####G
+```{r}
+plot(beta.errors, type = "l", xlab = "variables", ylab = "RMSE of B")
+beta.errors
+```
+
+The RMSE of our B estimates is minimized for the 6 variable model.  This is in line with our out of sample estimates, but differs from our true model (7 variable versus 6 variable).
+
+###Exercise 11
+We create models using lasso, ridge regression, PCR, and PLS.  We use cross validation to select our models, and then assess the training accuracy using the 
+
+```{r}
+library(MASS)
+library(glmnet)
+#loop through to generate the cross validation sets
+k.fold.validation.list <- function(data, k){
+  big.vec <- rep(1:k, ceiling(nrow(data)/k))
+  fitted.vec <- big.vec[(-nrow(data)-1):(-ceiling(nrow(data)/k)*k)]
+  return(fitted.vec)
+}
+
+train.length <- c(rep(TRUE, nrow(Boston)-100), rep(FALSE, 100))
+set.seed(3)
+train.length <- sample(train.length, nrow(Boston), replace = FALSE)
+Boston.train <- Boston[train.length,]
+Boston.test <- Boston[!train.length,]
+
+Boston.train.crim <- as.matrix(Boston.train$crim)
+Boston.train.x <- as.matrix(Boston.train[,!(names(Boston) %in% "crim")])
+Boston.test.crim <- as.matrix(Boston.test$crim)
+Boston.test.x <- as.matrix(Boston.test[,!(names(Boston) %in% "crim")])
+
+#Overall variance of the test data
+print(sd(Boston.test.crim))
+
+#Fit the lasso data
+set.seed(2)
+lasso.model <- cv.glmnet(Boston.train.x, Boston.train.crim, alpha = 1)
+plot(lasso.model)
+lasso.fit <- glmnet(Boston.train.x, Boston.train.crim, alpha = 1)
+lasso.coef <- predict(lasso.fit, s = lasso.model$lambda.min, type = "coefficients")
+print(lasso.coef)
+
+#Test out of sample data
+lasso.oos <- predict(lasso.model, s =lasso.model$lambda.min, newx = Boston.test.x)
+lasso.oos.error <- sum((Boston.test.crim - lasso.oos)^2)
+print(lasso.oos.error/100)^.5
+
+#Fit the ridge regression data
+set.seed(5)
+ridge.model <- cv.glmnet(Boston.train.x, Boston.train.crim, alpha = 1)
+plot(ridge.model)
+ridge.fit <- glmnet(Boston.train.x, Boston.train.crim, alpha = 1)
+ridge.coef <- predict(ridge.fit, s = ridge.model$lambda.min, type = "coefficients")
+print(ridge.coef)
+
+#Test out of sample data
+ridge.oos <- predict(ridge.model, s =ridge.model$lambda.min, newx = Boston.test.x)
+ridge.oos.error <- sum((Boston.test.crim - ridge.oos)^2)
+print(ridge.oos.error/100)^.5
+
+#Fit the pcr data
+set.seed(10)
+pcr.model <- pcr(crim ~., data = Boston.train, validation = "CV")
+summary(pcr.model)
+validationplot(pcr.model, val.type = "RMSEP")
+pcr.pred <- predict(pcr.model, Boston.test, ncomp = 10)
+print(mean((Boston.test.crim - as.matrix(pcr.pred))^2)^.5)
+
+#Fit the pls data
+set.seed(10)
+pls.model <- plsr(crim ~., data = Boston.train, validation = "CV", scale = TRUE)
+summary(pls.model)
+validationplot(pls.model, val.type = "RMSEP")
+pls.pred <- predict(pls.model, Boston.test, ncomp = 8)
+print(mean((Boston.test.crim - as.matrix(pls.pred))^2)^.5)
+
+```
+
+The PCR model seems to perform the best, which we might expect given the number of correlated variables.  Accordingly, we use the PCR model, which means that we use all the variables.
+
