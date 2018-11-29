@@ -1,0 +1,87 @@
+---
+title: "ISLR Chapter 10"
+author: "Alex Bayers"
+date: "11/25/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Exercise 2
+```{r}
+data = c(0, .3, .4, .7, 0.3, 0, 0.5, 0.8, 0.4, 0.5, 0, 0.45, 0.7, 0.8, 0.45, 0)
+data <- as.dist(matrix(data, nrow = 4, ncol = 4), diag = TRUE)
+complete.clust <- hclust(data)
+single.clust <- hclust(data, method = "single")
+complete.trees <- cutree(complete.clust, k = 2)
+plot(complete.clust, main = "Complete Linkage", xlab = "")
+abline(a=.5, b = 0, col = "red")
+plot(single.clust, main = "Single Linkage", xlab = "")
+abline(a=.42, b = 0, col = "red")
+```
+Complete linkage results in clusters of 1 & 2, and 3 & 4.  Single linkage results in 1, 2, 3, and a separate cluster at 4.
+
+###Exercise 3
+```{r}
+library(ISLR)
+set.seed(4)
+x1 <- c(1, 1, 0, 5, 6, 4)
+x2 <- c(4, 3, 4, 1, 2, 0)
+ylabel <- sample(c(1, 2), 6, TRUE)
+my.frame <- data.frame(x1, x2, ylabel)
+oldylabel  <- rep(0, 6)
+plot(x = x1, y = x2, col = ylabel, pch = 16)
+
+while (any(oldylabel != my.frame$ylabel)){
+  y1.mean <- colMeans(subset(my.frame, ylabel == 1))
+  y2.mean <- colMeans(subset(my.frame, ylabel == 2))
+  
+  y1.demeaned <- sweep(my.frame, 2, y1.mean)
+  y2.demeaned <- sweep(my.frame, 2, y2.mean)
+  
+  x1.distance <- (y1.demeaned$x1^2 + y1.demeaned$x2^2)^.5
+  x2.distance <- (y2.demeaned$x1^2 + y2.demeaned$x2^2)^.5
+  oldylabel <- my.frame$ylabel
+  my.frame$ylabel <- ifelse(x1.distance < x2.distance, 1, 2)
+  newtest = 1
+}
+plot(x = x1, y = x2, col = my.frame$ylabel, pch = 16)
+print(my.frame)
+```
+
+###Exercise 4
+#####A
+The fusion will occur higher up in the complete linkage rather than the single linkage, because they will be fused on the maximal distance rather than the minimum distance.
+
+#####B
+They will fuse at the same height, because there are no other linkages when they're fusing.
+
+#Exercise 5.
+Left Hand Chart - We would group yellow, purple, black, and light red together as one group.
+Center Chart - We would group yellow, blue, light red, and purple together.
+Right Chart - We would group yellow, blue, light red, and purple together.
+
+###Exercise 7
+```{r}
+library(ISLR)
+scaled.arrests <- scale(USArrests)
+arrests.dist <- dist(scaled.arrests, diag = TRUE)
+arrests.cor <- cor(t(scaled.arrests))
+#summary((arrests.dist ^ 2) / (1 - arrests.cor))
+```
+
+###Exercise 8
+```{r}
+scaled.arrests <- scale(USArrests)
+#A
+pc.arrests <- prcomp(scaled.arrests)
+pc.var <- pc.arrests$sdev^2
+pve <- pc.var/sum(pc.var)
+pve
+
+#B?
+sum(scaled.arrests^2)
+```
+

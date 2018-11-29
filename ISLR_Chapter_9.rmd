@@ -262,46 +262,9 @@ OJ.train <- OJ[train,]
 OJ.test <- OJ[-train,]
 ```
 
-#####B & C
+#####B
 ```{r}
 OJ.model <- svm(Purchase ~., data = OJ.train, kernel = "linear", cost = 0.01)
 summary(OJ.model)
-train.pred <- predict(OJ.model, newdata = OJ.train)
-sum(train.pred==OJ.train$Purchase)/800
-test.pred <- predict(OJ.model, newdata = OJ.test)
-sum(test.pred==OJ.test$Purchase)/270
 
 ```
-
-The train error is 83.4%, and the test error is 83%.
-
-#####D & E
-```{r}
-set.seed(347)
-tune.linear <- tune(svm, Purchase ~., data=OJ.train,kernel="linear", ranges=list(cost=c(0.01, 0.1, 1,5,10)))
-summary(tune.linear)
-test.best <- predict(tune.linear$best.model, newdata = OJ.test)
-sum(test.best==OJ.test$Purchase)/270
-```
-A cost of 1 minimizes the CV error.  The training error was 16.75%, while the test error is 82.6%.
-
-#####F
-```{r}
-set.seed(348)
-tune.radial <- tune(svm, Purchase ~., data=OJ.train,kernel="radial", ranges=list(cost=c(0.01, 0.1, 1,5,10)))
-summary(tune.radial)
-radial.best <- predict(tune.radial$best.model, newdata = OJ.test)
-sum(radial.best==OJ.test$Purchase)/270
-```
-
-The training error is 83.125%, while the test error is 80%.  The CV error is minimized for cost = 1.
-
-#####F
-```{r}
-set.seed(348)
-tune.poly <- tune(svm, Purchase ~., data=OJ.train,kernel="poly", ranges=list(cost=c(0.01, 0.1, 1,5,10), degree = c(2)))
-summary(tune.poly)
-poly.best <- predict(tune.poly$best.model, newdata = OJ.test)
-sum(poly.best==OJ.test$Purchase)/270
-```
-The train eror is 82.75%, while the test error is 80.4%.

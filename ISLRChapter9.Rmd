@@ -273,7 +273,7 @@ sum(test.pred==OJ.test$Purchase)/270
 
 ```
 
-The train error is 83.4%, and the test error is 83%.
+The train accuracy is 83.4%, and the test accuracy is 83%.
 
 #####D & E
 ```{r}
@@ -283,7 +283,7 @@ summary(tune.linear)
 test.best <- predict(tune.linear$best.model, newdata = OJ.test)
 sum(test.best==OJ.test$Purchase)/270
 ```
-A cost of 1 minimizes the CV error.  The training error was 16.75%, while the test error is 82.6%.
+A cost of 1 minimizes the CV error.  The training error was 16.75%, while the test accuracy is 82.6%.
 
 #####F
 ```{r}
@@ -294,7 +294,7 @@ radial.best <- predict(tune.radial$best.model, newdata = OJ.test)
 sum(radial.best==OJ.test$Purchase)/270
 ```
 
-The training error is 83.125%, while the test error is 80%.  The CV error is minimized for cost = 1.
+The training accuracy is 83.125%, while the test accuracy is 80%.  The CV error is minimized for cost = 1.
 
 #####F
 ```{r}
@@ -304,4 +304,7 @@ summary(tune.poly)
 poly.best <- predict(tune.poly$best.model, newdata = OJ.test)
 sum(poly.best==OJ.test$Purchase)/270
 ```
-The train eror is 82.75%, while the test error is 80.4%.
+The train accuracy is 82.75%, while the test accuracy is 80.4%.
+
+#####G
+The linear model seems to work the best.
