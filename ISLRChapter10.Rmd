@@ -66,11 +66,12 @@ Right Chart - We would group yellow, blue, light red, and purple together.
 ###Exercise 7
 ```{r}
 library(ISLR)
-scaled.arrests <- scale(USArrests)
-arrests.dist <- dist(scaled.arrests, diag = TRUE)
-arrests.cor <- cor(t(scaled.arrests))
-#summary((arrests.dist ^ 2) / (1 - arrests.cor))
+scaled.arrests <- scale(t(USArrests))
+arrests.dist <- dist(t(scaled.arrests), diag = TRUE)
+as.matrix(arrests.dist^2) / (1-cor(scaled.arrests))
+
 ```
+The proportion is 6.
 
 ###Exercise 8
 ```{r}
@@ -82,6 +83,34 @@ pve <- pc.var/sum(pc.var)
 pve
 
 #B?
-sum(scaled.arrests^2)
+apply((scaled.arrests %*% pc.arrests$rotation)^2, 2, sum)/196
 ```
 
+###Exercise 9
+```{r}
+#A
+dist.states <- dist(USArrests)
+states.clust <- hclust(dist.states)
+plot(states.clust)
+
+#B
+states.tree <- cutree(states.clust, k = 3)
+abline(a = 125, b = 0, col = "red")
+states.tree[states.tree== 1]
+states.tree[states.tree== 2]
+states.tree[states.tree== 3]
+
+#C
+scaled.arrests <- scale(USArrests)
+scaled.states <- dist(scaled.arrests)
+scaled.clust <- hclust(scaled.states)
+plot(scaled.clust)
+scaled.tree <- cutree(scaled.clust, k = 4)
+
+scaled.tree[scaled.tree== 1]
+scaled.tree[scaled.tree== 2]
+scaled.tree[scaled.tree== 3]
+scaled.tree[scaled.tree== 4]
+
+```
+The scaled clusters seem much more intuitive.  For example, clustering California with Alabama or Alaska doesn't seem particulary intuitive (in the unscaled example); wheareas in the scaled example we cluster it with New York and Florida, for example. 
