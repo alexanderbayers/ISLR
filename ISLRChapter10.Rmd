@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Exercise 2
+###Exercise 2
 ```{r}
 data = c(0, .3, .4, .7, 0.3, 0, 0.5, 0.8, 0.4, 0.5, 0, 0.45, 0.7, 0.8, 0.45, 0)
 data <- as.dist(matrix(data, nrow = 4, ncol = 4), diag = TRUE)
@@ -114,3 +114,89 @@ scaled.tree[scaled.tree== 4]
 
 ```
 The scaled clusters seem much more intuitive.  For example, clustering California with Alabama or Alaska doesn't seem particulary intuitive (in the unscaled example); wheareas in the scaled example we cluster it with New York and Florida, for example. 
+
+###Exercise 10
+```{r}
+#A
+set.seed(5)
+innov.matrix <- matrix(rnorm(3000), nrow = 60, ncol = 50)
+mean.shift <- c(rep(-.5, 20), rep(0, 20), rep(.5, 20))
+class.matrix <- c(rep(1, 20), rep(2, 20), rep(3, 20))
+color.matrix <- c("red", "blue", "green", "yellow")
+mean.matrix <- innov.matrix + mean.shift
+
+#B
+sim.pca <- prcomp(mean.matrix, scale = TRUE)
+plot(x = sim.pca$x[,"PC1"], sim.pca$x[,"PC2"], col = c(rep("red", 20), rep("blue", 20), rep("green", 20)), pch = 16)
+
+#C
+km.3=kmeans(mean.matrix,3,nstart=20)
+table(km.3$cluster, class.matrix)
+plot(x = sim.pca$x[,"PC1"], sim.pca$x[,"PC2"],  pch = 16, col = color.matrix[km.3$cluster])
+```
+The KNN fit is bang on, correctly identifying 51 of the 60 results.
+
+
+```{r}
+#D
+km.2=kmeans(mean.matrix,2,nstart=20)
+table(km.2$cluster, class.matrix)
+plot(x = sim.pca$x[,"PC1"], sim.pca$x[,"PC2"],  pch = 16, col = color.matrix[km.2$cluster])
+```
+We see here that KNN results in one of the classes being masked, with a substantial deterioration in results - identifying 40 of the 60 correctly, but effectively missing the entire second group.
+
+```{r}
+#E
+km.4=kmeans(mean.matrix,4,nstart=20)
+table(km.4$cluster, class.matrix)
+plot(x = sim.pca$x[,"PC1"], sim.pca$x[,"PC2"],  pch = 16, col = color.matrix[km.4$cluster])
+```
+The model here misclassifies 13 observations, but not in any systematic sense.  This suggests it is better have more rather than fewer classes.
+
+```{r}
+#F
+pca.frame <- data.frame(sim.pca$x[,"PC1"], sim.pca$x[,"PC2"])
+kmpca.3=kmeans(pca.frame,3,nstart=20)
+table(kmpca.3$cluster, class.matrix)
+```
+The PCA based model achieves much better separation, misclassifying only 5 of the datapoints (versus 9 in the original sample).
+
+```{r}
+#G
+standardized.data <- mean.matrix/apply(mean.matrix, 2, sd)
+kmstandarized.3=kmeans(standardized.data,3,nstart=20)
+table(kmstandarized.3$cluster, class.matrix)
+```
+The performance is the same as on the unstandardized version, though this is perhaps to be expected given that we set a uniform vol across the variables.
+
+###Exercise 11
+#####A
+```{r}
+data <- read.csv("Ch10Ex11.csv", header = FALSE)
+scaled.data <- scale(data)
+dist.matrix <- as.dist(1-cor(scaled.data))
+complete.tree <- hclust(dist.matrix)
+plot(complete.tree, main = "Complete Linkage")
+average.tree <- hclust(dist.matrix, method = "average")
+plot(average.tree, main = "Average Linkage")
+single.tree <- hclust(dist.matrix, method = "single")
+plot(single.tree, main = "Single Linkage")
+```
+All methods seem to pretty clearly separate the healthy from the unhealthy individuals.
+
+#####B
+We can take our groups, then compare the expression level across each of the groups.  We use the p-value of a two sample t-test as our metric on which to compare.
+```{r}
+sick <- data[,1:20]
+healthy <- data[,21:40]
+ret.test <- vector(length = 1000)
+for (i in 1:1000){
+  x = sick[i,]
+  y = healthy[i,]
+  ret.test[i] <- t.test(x, y, althernative = c("two.sided"), mu = 0)$p.value
+}
+
+ret.frame <- data.frame(ret.test)
+ret.frame <- data.frame( "gene.index" = seq(1:1000), ret.frame)
+ret.frame[order(ret.frame$ret.test),]
+```
