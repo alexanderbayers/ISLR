@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Godzilla Battle</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #101418; color: #e7eee8; font-family: system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px; box-sizing: border-box; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: 0.04em; }
+  p { margin: 0; color: #9aaba0; font-size: 13px; }
+  #frame { width: min(960px, 100%); }
+  canvas { width: 100%; height: auto; background: #101418; display: block; outline: none; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: min(960px, 100%); }
+  button { font: inherit; font-size: 13px; color: #e7eee8; background: #1c2630; border: 1px solid #31404c; border-radius: 6px; padding: 6px 10px; }
+  button[data-on="1"] { background: #1f3d34; border-color: #3d7a62; }
+  .diff[data-on="1"] { background: #243044; }
+</style>
+</head>
+<body>
+<h1>Godzilla Battle</h1>
+<p>Custom kaiju. You are Godzilla. Not affiliated with Toho.</p>
+<div id="frame">
+  <canvas id="c" width="960" height="540" tabindex="0"></canvas>
+</div>
+<div class="row" id="diffs">
+  <button class="diff" data-diff="easy">Easy</button>
+  <button class="diff" data-diff="normal" data-on="1">Normal</button>
+  <button class="diff" data-diff="hard">Hard</button>
+  <button id="mute">Sound off</button>
+</div>
+<div class="row" id="pad">
+  <button data-k="left">Left</button>
+  <button data-k="right">Right</button>
+  <button data-k="jump">Jump</button>
+  <button data-k="strike">Strike</button>
+  <button data-k="breath">Breath</button>
+  <button data-k="roar">Roar</button>
+  <button data-k="start">Start</button>
+</div>
+<p>Click the city, then A D move, W jump, J strike, hold K breath, L roar.</p>
+<script src="game.js"></script>
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const game = GZGame.createGame();
+const held = { left: false, right: false, jump: false, strike: false, breath: false, roar: false, start: false, pause: false };
+const PAL = {
+  sky: "#101418",
+  skyline: "#171e28",
+  moon: "#f3efe4",
+  building: "#243044",
+  buildingEdge: "#3c5166",
+  window: "#8ec8ea",
+  windowDim: "#314258",
+  ground: "#12181c",
+  groundTop: "#2a4034",
+  panel: "#101820",
+  shadow: "#05070a",
+  text: "#e7eee8",
+  textDim: "#93a396",
+  pupil: "#101418",
+  hp: "#d2554a",
+  hpBack: "#3a2424",
+  energy: "#3ec8b8",
+  energyBack: "#163430",
+  gz: "#0D855A",
+  gzBelly: "#1F8A65",
+  gzPlate: "#7DCAB0",
+  gzEye: "#E8C030",
+  blood: "#C04848",
+  bloodDeep: "#8a2e2e",
+  armor: "#9AAADC",
+  armorDark: "#5A6CC0",
+  cannon: "#c8d0dc",
+  warden: "#16141f",
+  wardenGlow: "#70B0D8",
+  gold: "#E8C030",
+  goldDeep: "#C06028",
+  omni: "#3a3a8a",
+  omniPlates: ["#E8C030", "#70B0D8", "#C85898", "#7DCAB0"],
+  breath: "#7DCAB0",
+  breathCore: "#E8C030",
+  sonic: "#70B0D8",
+  missile: "#F0A040",
+  warn: "#E8C030",
+};
+try {
+  const best = Number(localStorage.getItem("godzilla-battle-best") || "0");
+  if (best) game.setBest(best);
+} catch (e) {}
+try {
+  game.setReduce(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+} catch (e) {}
+
+const keyMap = {
+  ArrowLeft: "left", ArrowRight: "right", ArrowUp: "jump",
+  a: "left", d: "right", A: "left", D: "right",
+  w: "jump", W: "jump", " ": "jump",
+  j: "strike", J: "strike", z: "strike", Z: "strike",
+  k: "breath", K: "breath", x: "breath", X: "breath",
+  l: "roar", L: "roar", c: "roar", C: "roar",
+  Enter: "start", Escape: "pause",
+};
+window.addEventListener("keydown", function (e) {
+  if (e.key === "1") game.setDiff("easy");
+  if (e.key === "2") game.setDiff("normal");
+  if (e.key === "3") game.setDiff("hard");
+  if (e.key === "m" || e.key === "M") toggleMute();
+  const k = keyMap[e.key];
+  if (!k) return;
+  e.preventDefault();
+  held[k] = true;
+});
+window.addEventListener("keyup", function (e) {
+  const k = keyMap[e.key];
+  if (k) held[k] = false;
+});
+document.querySelectorAll("#pad button").forEach(function (btn) {
+  const k = btn.getAttribute("data-k");
+  const down = function (e) { e.preventDefault(); held[k] = true; btn.setAttribute("data-on", "1"); canvas.focus(); };
+  const up = function () { held[k] = false; btn.removeAttribute("data-on"); };
+  btn.addEventListener("pointerdown", down);
+  btn.addEventListener("pointerup", up);
+  btn.addEventListener("pointerleave", up);
+  btn.addEventListener("pointercancel", up);
+});
+document.querySelectorAll(".diff").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    game.setDiff(btn.getAttribute("data-diff"));
+    document.querySelectorAll(".diff").forEach(function (b) { b.removeAttribute("data-on"); });
+    btn.setAttribute("data-on", "1");
+  });
+});
+let muted = true;
+let audio = null;
+let breathNode = null;
+function ac() {
+  if (audio) return audio;
+  const C = window.AudioContext || window.webkitAudioContext;
+  if (!C) return null;
+  try { audio = new C(); } catch (e) { audio = null; }
+  return audio;
+}
+function beep(freq, dur, type, gain) {
+  if (muted) return;
+  const a = ac();
+  if (!a) return;
+  const o = a.createOscillator();
+  const g = a.createGain();
+  o.type = type || "square";
+  o.frequency.value = freq;
+  g.gain.value = gain || 0.04;
+  o.connect(g); g.connect(a.destination);
+  o.start();
+  g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+  o.stop(a.currentTime + dur);
+}
+function setBreath(on) {
+  if (muted || !on) {
+    if (breathNode) { try { breathNode.stop(); } catch (e) {} breathNode = null; }
+    return;
+  }
+  if (breathNode) return;
+  const a = ac();
+  if (!a) return;
+  const o = a.createOscillator();
+  const g = a.createGain();
+  o.type = "sawtooth";
+  o.frequency.value = 90;
+  g.gain.value = 0.03;
+  o.connect(g); g.connect(a.destination);
+  o.start();
+  breathNode = o;
+}
+function toggleMute() {
+  muted = !muted;
+  document.getElementById("mute").textContent = muted ? "Sound off" : "Sound on";
+  if (muted) setBreath(false);
+  else ac() && ac().resume();
+}
+document.getElementById("mute").addEventListener("click", toggleMute);
+canvas.addEventListener("pointerdown", function () { canvas.focus(); });
+
+let last = performance.now();
+let prevBreath = false;
+function frame(now) {
+  if (window.__FREEZE) {
+    game.draw(ctx, PAL);
+    requestAnimationFrame(frame);
+    return;
+  }
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  const events = game.step(dt, held);
+  held.start = false;
+  held.pause = false;
+  if (events.indexOf("best") >= 0) {
+    try { localStorage.setItem("godzilla-battle-best", String(game.g.best)); } catch (e) {}
+  }
+  if (events.indexOf("hit") >= 0) beep(180, 0.06, "square", 0.04);
+  if (events.indexOf("hurt") >= 0) beep(70, 0.12, "sawtooth", 0.05);
+  if (events.indexOf("roar") >= 0) beep(50, 0.3, "sawtooth", 0.06);
+  if (events.indexOf("boom") >= 0) beep(90, 0.1, "square", 0.04);
+  if (events.indexOf("victory") >= 0) beep(440, 0.2, "square", 0.04);
+  const breathing = game.g.player && game.g.player.state === "breath";
+  if (breathing !== prevBreath) setBreath(breathing);
+  prevBreath = breathing;
+  game.draw(ctx, PAL);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+canvas.focus();
+window.__GZ = game;
+</script>
+</body>
+</html>
