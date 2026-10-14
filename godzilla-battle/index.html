@@ -45,6 +45,7 @@ const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 const game = GZGame.createGame();
 const held = { left: false, right: false, jump: false, strike: false, breath: false, roar: false, start: false, pause: false };
+const pulsed = { start: false, pause: false, roar: false };
 const PAL = {
   sky: "#101418",
   skyline: "#171e28",
@@ -111,6 +112,7 @@ window.addEventListener("keydown", function (e) {
   if (!k) return;
   e.preventDefault();
   held[k] = true;
+  if (k === "start" || k === "pause" || k === "roar") pulsed[k] = true;
 });
 window.addEventListener("keyup", function (e) {
   const k = keyMap[e.key];
@@ -118,7 +120,7 @@ window.addEventListener("keyup", function (e) {
 });
 document.querySelectorAll("#pad button").forEach(function (btn) {
   const k = btn.getAttribute("data-k");
-  const down = function (e) { e.preventDefault(); held[k] = true; btn.setAttribute("data-on", "1"); canvas.focus(); };
+  const down = function (e) { e.preventDefault(); held[k] = true; if (pulsed[k] !== undefined) pulsed[k] = true; btn.setAttribute("data-on", "1"); canvas.focus(); };
   const up = function () { held[k] = false; btn.removeAttribute("data-on"); };
   btn.addEventListener("pointerdown", down);
   btn.addEventListener("pointerup", up);
@@ -192,9 +194,14 @@ function frame(now) {
   }
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  const events = game.step(dt, held);
-  held.start = false;
-  held.pause = false;
+  const input = {
+    left: held.left, right: held.right, jump: held.jump, strike: held.strike, breath: held.breath,
+    roar: held.roar || pulsed.roar, start: held.start || pulsed.start, pause: held.pause || pulsed.pause,
+  };
+  pulsed.start = false;
+  pulsed.pause = false;
+  pulsed.roar = false;
+  const events = game.step(dt, input);
   if (events.indexOf("best") >= 0) {
     try { localStorage.setItem("godzilla-battle-best", String(game.g.best)); } catch (e) {}
   }

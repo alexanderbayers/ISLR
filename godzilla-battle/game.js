@@ -984,11 +984,12 @@
       g.modeT += dt;
       g.shake = Math.max(0, g.shake - dt * 1.8);
 
-      if (input.start && !g.latch.start) {
+      const startPressed = !!(input.start || ((g.mode === "title" || g.mode === "gameover" || g.mode === "victory") && input.jump));
+      if (startPressed && !g.latch.start) {
         g.latch.start = true;
         onStart();
       }
-      if (!input.start) g.latch.start = false;
+      if (!startPressed) g.latch.start = false;
       if (input.pause && !g.latch.pause) {
         g.latch.pause = true;
         onPause();
