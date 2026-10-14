@@ -60,7 +60,7 @@
     },
     {
       name: "Omni Godzilla",
-      tip: "Roar breaks the prism beam. Step off the lightning.",
+      tip: "Jump the low beam. Step off the lightning.",
       spawns: [{ kind: "omni", t: 0.45, side: 1 }],
     },
   ];
@@ -432,11 +432,6 @@
         if (!e.alive) return;
         if (Math.abs(e.x - p.x) < 260) {
           e.stun = e.boss ? 1.05 : 1.35;
-          if (e.behavior === "omni" && (e.state === "beam" || e.state === "beamWind")) {
-            e.state = "walk";
-            e.stateT = 0;
-            e.cd = 0.7;
-          }
           if (e.state === "dash" || e.state === "windup" || e.state === "hop") e.state = "walk";
           damageEnemy(e, 10, true, true);
         }
@@ -664,6 +659,7 @@
       if (e.stun > 0) {
         e.stun -= dt;
         e.vx = 0;
+        if (e.behavior === "omni" && (e.state === "beam" || e.state === "beamWind")) updateOmni(e, dt);
         physics(e, dt);
         return;
       }
